@@ -37,6 +37,7 @@ import { Picker, type PickerItem } from './views/Picker'
 import { ConfirmDialog } from './views/ConfirmDialog'
 import { AttachmentPreview } from './views/AttachmentPreview'
 import { ZeroModal } from './views/ZeroModal'
+import { CleanModal } from './views/CleanModal'
 import { ZeroState } from './views/ZeroState'
 import { Settings, type Section as SettingsSection } from './views/Settings'
 import { DEFAULT_SIDEBAR_LABELS, yourSidebarLabels, type LabelColors, type SidebarLabel } from './labelChips'
@@ -104,6 +105,7 @@ type Overlay =
   | { kind: 'label'; ids: number[]; items: PickerItem[] }
   | { kind: 'unsubscribe'; id: number; sender: string; description: string }
   | { kind: 'zero'; folderId: number }
+  | { kind: 'clean'; folderId: number }
   /** ⌘O on an attachment: the in-app preview, or a confirmation before the OS opens it. */
   | { kind: 'attachment'; attachment: Attachment; canPreview: boolean }
 
@@ -1599,6 +1601,11 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           if (fid && isInbox(fid)) setOverlay({ kind: 'zero', folderId: fid })
           else setActionError('Get me to zero works on the Inbox')
         },
+        'triage.clean': () => {
+          const fid = useStore.getState().activeFolderId
+          if (fid && isInbox(fid)) setOverlay({ kind: 'clean', folderId: fid })
+          else setActionError('Clean up noise works on the Inbox')
+        },
         'msg.select': () => {
           const { rows: r, selectedIndex: i } = useStore.getState()
           const row = r[i]
@@ -2205,6 +2212,26 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
             await loadRows(fid)
             const n = r.moved.length
             pushUndo(`Done ${n} message${n === 1 ? '' : 's'}`, r.holdMs, async () => {
+              const u = await window.api.undoMove(r.batchId)
+              if (!u.ok) return setActionError(u.error)
+              repaintAfterUndo(origin, [])
+            })
+          }}
+        />
+      )}
+      {overlay?.kind === 'clean' && (
+        <CleanModal
+          folderId={overlay.folderId}
+          onCancel={() => setOverlay(null)}
+          onDone={async (senders) => {
+            const fid = overlay.folderId
+            setOverlay(null)
+            const origin = viewKey(useStore.getState())
+            const r = await window.api.clean(fid, senders)
+            if (!r.ok) return setActionError(r.error === 'no archive folder' ? NO_ARCHIVE : r.error)
+            await loadRows(fid)
+            const n = r.moved.length
+            pushUndo(`Cleaned ${n} message${n === 1 ? '' : 's'}`, r.holdMs, async () => {
               const u = await window.api.undoMove(r.batchId)
               if (!u.ok) return setActionError(u.error)
               repaintAfterUndo(origin, [])

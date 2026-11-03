@@ -5,7 +5,8 @@ import { AiLabelSettings } from './AiLabelSettings'
 
 const PROVIDERS: { id: AiProviderId; label: string; keyHint: string }[] = [
   { id: 'anthropic', label: 'Anthropic (Claude)', keyHint: 'sk-ant-…' },
-  { id: 'openai', label: 'OpenAI', keyHint: 'sk-…' }
+  { id: 'openai', label: 'OpenAI', keyHint: 'sk-…' },
+  { id: 'deepseek', label: 'DeepSeek', keyHint: 'sk-…' }
 ]
 
 const FEATURES: { id: AiFeature; label: string }[] = [
@@ -16,7 +17,7 @@ const FEATURES: { id: AiFeature; label: string }[] = [
   { id: 'ask', label: 'Ask AI from ⌘K (press ⇥), answered from your local mail' }
 ]
 
-const NAME: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI' }
+const NAME: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek' }
 
 /** The model field's text: empty while the provider's default is in use. */
 const shownModel = (s: AiStatus): string =>
@@ -151,7 +152,8 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         Privacy: when a feature runs, the sender, subject and text of the messages it works on are sent from this Mac
         straight to {NAME[p]} with your key. Sovo has no server of its own. Your key is encrypted with the macOS
         keychain and never leaves this Mac except to {NAME[p]}. Ask AI sends the few local messages that match your
-        question.
+        question. Instant Reply and Write with AI also send a few earlier messages with the same person, so replies
+        fit what was said before.
       </p>
       {error && <p className="settings-error">{error}</p>}
     </section>

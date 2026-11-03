@@ -64,7 +64,7 @@ export interface Ai {
 /** Background work leaves the last 20 % of the day's budget to what the user asks for. */
 export const BACKGROUND_SHARE = 0.8
 
-const PROVIDER_LABEL: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI' }
+const PROVIDER_LABEL: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek' }
 const FEATURE_LABEL: Record<AiFeature, string> = {
   write: 'Write with AI',
   replies: 'Instant Reply',

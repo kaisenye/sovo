@@ -38,7 +38,7 @@ const REPLIED_SQL =
  * (list_rows.ai_important, v21); else non-bulk mail from people you have
  * written to. Other is its exact complement.
  */
-const IMPORTANT_SQL = `(${VIP_SQL} OR COALESCE(lr.ai_important = 1, lr.bulk = 0 AND ${REPLIED_SQL}))`
+export const IMPORTANT_SQL = `(${VIP_SQL} OR COALESCE(lr.ai_important = 1, lr.bulk = 0 AND ${REPLIED_SQL}))`
 
 /** `is:` values that read thread state from list_rows. List context only. */
 const LIST_IS: Record<string, string> = {

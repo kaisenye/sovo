@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { aiConfigPatch, DEFAULT_MODELS, readAiSettings } from './settings.js'
 
-const noKeys = { anthropic: false, openai: false }
+const noKeys = { anthropic: false, openai: false, deepseek: false }
 
 describe('AI settings', () => {
   it('defaults to Anthropic, the default models, $1 a day and everything off', () => {
@@ -11,7 +11,7 @@ describe('AI settings', () => {
       budgetUsd: 1,
       toggles: { write: false, replies: false, summary: false, classify: false, ask: false }
     })
-    expect(DEFAULT_MODELS).toEqual({ anthropic: 'claude-sonnet-5-5', openai: 'gpt-6.1-sol' })
+    expect(DEFAULT_MODELS).toEqual({ anthropic: 'claude-sonnet-5-5', openai: 'gpt-6.1-sol', deepseek: 'deepseek-flash' })
   })
 
   it('reads stored values and repairs bad ones', () => {
@@ -23,7 +23,7 @@ describe('AI settings', () => {
       ai_summary: '1'
     })
     expect(s.provider).toBe('openai')
-    expect(s.models).toEqual({ anthropic: 'claude-sonnet-5-5', openai: 'gpt-5.5' })
+    expect(s.models).toEqual({ anthropic: 'claude-sonnet-5-5', openai: 'gpt-5.5', deepseek: 'deepseek-flash' })
     expect(s.budgetUsd).toBe(100)
     expect(s.toggles.summary).toBe(true)
     expect(readAiSettings({ ai_provider: 'mistral', ai_daily_budget_usd: '-3' })).toMatchObject({
@@ -34,7 +34,7 @@ describe('AI settings', () => {
   })
 
   it('turns a config change into settings, refusing what main must not accept', () => {
-    const ctx = { provider: 'anthropic' as const, hasKey: { anthropic: true, openai: false } }
+    const ctx = { provider: 'anthropic' as const, hasKey: { anthropic: true, openai: false, deepseek: false } }
     expect(aiConfigPatch({ provider: 'openai' }, ctx)).toEqual({
       ai_provider: 'openai',
       ai_write: '0',

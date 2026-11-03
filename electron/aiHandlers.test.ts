@@ -17,7 +17,7 @@ function setup(settings: Record<string, string>, keys: Partial<Record<AiProvider
   const ai = createAi({
     settings: () => settings,
     key: (p) => vault.get(p) ?? null,
-    providers: { anthropic: provider('anthropic'), openai: provider('openai') },
+    providers: { anthropic: provider('anthropic'), openai: provider('openai'), deepseek: provider('deepseek') },
     usage: { spentMicros: () => 0, record: () => {} }
   })
   const cleared = { verdicts: 0 }
@@ -94,7 +94,7 @@ describe('ai IPC handlers', () => {
 })
 
 describe('ai:write handler', () => {
-  const src = { id: 7, account_id: 2, thread_id: 't1' }
+  const src = { id: 7, account_id: 2, thread_id: 't1', from_addr: 'ann@x.test' }
   const msg = (date: number, text: string) => ({
     from_addr: 'ann@x.test',
     from_name: 'Ann',
@@ -108,7 +108,9 @@ describe('ai:write handler', () => {
     ai,
     message: (id) => (id === 7 ? src : undefined),
     thread: (accountId, threadId) => (accountId === 2 && threadId === 't1' ? [msg(2000, 'newer'), msg(1000, 'older')] : []),
-    displayName: (accountId) => (accountId === 2 ? 'Kai' : null)
+    displayName: (accountId) => (accountId === 2 ? 'Kai' : null),
+    history: (accountId, address, key) =>
+      accountId === 2 && address === 'ann@x.test' && key === 't1' ? 'Earlier conversation: Lunch' : ''
   })
 
   it('drafts with the replied-to thread and the owning account name', async () => {
@@ -118,6 +120,10 @@ describe('ai:write handler', () => {
     expect(ai.calls[0].req.prompt).toContain('older')
     expect(ai.calls[0].req.prompt).toContain('newer')
     expect(ai.calls[0].req.system).toContain('(Kai)')
+    // Earlier conversations with Ann come first, before the thread being answered.
+    const prompt = ai.calls[0].req.prompt
+    expect(prompt.indexOf('Earlier conversation: Lunch')).toBeGreaterThanOrEqual(0)
+    expect(prompt.indexOf('Earlier conversation: Lunch')).toBeLessThan(prompt.indexOf('older'))
   })
 
   it('passes the selection scope through to the prompt', async () => {
@@ -130,6 +136,7 @@ describe('ai:write handler', () => {
     const ai = fakeAi(() => 'Short.')
     await aiWrite(deps(ai), { action: 'shorten', text: 'A long one', sourceMessageId: 7 })
     expect(ai.calls[0].req.prompt).not.toContain('<message')
+    expect(ai.calls[0].req.prompt).not.toContain('Earlier conversation')
   })
 
   it('rejects an unknown action and reports a switched-off feature', async () => {

@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { createAnthropicProvider } from './anthropic.js'
+import { createDeepSeekProvider, SCHEMA_MARK } from './deepseek.js'
 import { createOpenAiProvider } from './openai.js'
 import { MOCK_CLASSIFICATION, MOCK_PARTIAL, MOCK_TEXT, startMockAiServer, type MockAiServer } from './mockServer.js'
 import { AiError } from './types.js'
@@ -158,6 +159,61 @@ describe('OpenAI provider (against the local mock)', () => {
         .complete({ system: 's', prompt, maxTokens: 10 }, { apiKey: KEY, model: 'gpt-6.1-sol' })
         .catch((x: unknown) => x)
       expect(e).toMatchObject({ code, usage: { model: 'gpt-6.1-sol', inputTokens: 120, outputTokens: 30 } })
+    }
+  })
+})
+
+describe('DeepSeek provider (against the local mock)', () => {
+  const p = () => createDeepSeekProvider({ baseURL: mock.url })
+
+  it('uses Chat Completions with thinking off, and reads text and usage', async () => {
+    const r = await p().complete({ system: 'sys', prompt: 'hello', maxTokens: 500 }, { apiKey: KEY, model: 'deepseek-flash' })
+    expect(r).toEqual({ text: MOCK_TEXT, model: 'deepseek-flash', inputTokens: 120, outputTokens: 30 })
+    const call = mock.calls[0]
+    expect(call.path).toBe('/chat/completions')
+    expect(call.headers.authorization).toBe(`Bearer ${KEY}`)
+    expect(call.body).toMatchObject({
+      model: 'deepseek-flash',
+      max_tokens: 500,
+      thinking: { type: 'disabled' },
+      messages: [
+        { role: 'system', content: 'sys' },
+        { role: 'user', content: 'hello' }
+      ]
+    })
+    expect(call.body).not.toHaveProperty('response_format')
+  })
+
+  it('asks for JSON mode and writes the schema into the system prompt', async () => {
+    const r = await p().complete(
+      { system: 's', prompt: 'p', maxTokens: 300, schema: SCHEMA },
+      { apiKey: KEY, model: 'deepseek-flash' }
+    )
+    expect(JSON.parse(r.text)).toEqual(MOCK_CLASSIFICATION)
+    const body = mock.calls[0].body as { response_format: unknown; messages: { content: string }[] }
+    expect(body.response_format).toEqual({ type: 'json_object' })
+    expect(body.messages[0].content).toBe(`s\n\n${SCHEMA_MARK}\n${JSON.stringify(SCHEMA.schema)}`)
+  })
+
+  it('turns a rejected key into an auth error', async () => {
+    const e = await p()
+      .complete({ system: 's', prompt: 'MOCK_401', maxTokens: 10 }, { apiKey: KEY, model: 'deepseek-flash' })
+      .catch((x: unknown) => x)
+    expect(e).toMatchObject({ code: 'auth' })
+    expect((e as Error).message).not.toContain(KEY)
+  })
+
+  it('rejects a cut-off or filtered reply, with the billed usage attached', async () => {
+    for (const [prompt, code] of [
+      ['MOCK_TRUNCATE', 'bad-output'],
+      ['MOCK_REFUSE', 'refused']
+    ] as const) {
+      const e = await p()
+        .complete({ system: 's', prompt, maxTokens: 10 }, { apiKey: KEY, model: 'deepseek-flash' })
+        .catch((x: unknown) => x)
+      expect(e).toBeInstanceOf(AiError)
+      expect(e).toMatchObject({ code, usage: { model: 'deepseek-flash', inputTokens: 120, outputTokens: 30 } })
+      expect((e as Error).message).not.toContain(MOCK_PARTIAL)
     }
   })
 })

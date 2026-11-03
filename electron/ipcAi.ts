@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import { displayNameFor } from '../src/core/accounts/manage.js'
 import { askMail } from '../src/core/ai/ask.js'
+import { pastThreads } from '../src/core/ai/history.js'
 import { threadInsights } from '../src/core/ai/insights.js'
 import { suggestRepliesOnce } from '../src/core/ai/replies.js'
 import { summarizeThreadOnce } from '../src/core/ai/summary.js'
@@ -63,7 +64,7 @@ export function registerAiIpc(): void {
   ipcMain.handle('ai:clearKey', (_e, provider: AiProviderId) => h.clearKey(provider))
   ipcMain.handle('ai:setConfig', (_e, input: AiConfigInput) => resumeIfOk(h.setConfig(input)))
   ipcMain.handle('ai:write', (_e, input: AiWriteInput) =>
-    aiWrite({ ai: getAi(), message: getMessage, thread: getThread, displayName: displayNameFor }, input)
+    aiWrite({ ai: getAi(), message: getMessage, thread: getThread, displayName: displayNameFor, history: pastThreads }, input)
   )
 
   // An inbox's own labels (Settings → AI). Saving one re-sorts that inbox's

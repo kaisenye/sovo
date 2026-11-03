@@ -28,6 +28,7 @@ import {
 import { undoWindowMs } from '../src/core/triage/undoWindow.js'
 import { describePlan, oneClickPost, planUnsubscribe, runUnsubscribe } from '../src/core/triage/unsubscribe.js'
 import { zeroCandidates, type ZeroOptions } from '../src/core/triage/zero.js'
+import { cleanGroups } from '../src/core/triage/clean.js'
 import { enqueueOutbox } from '../src/core/send/outbox.js'
 import { deleteSplit, listSplits, saveSplit, splitCounts } from '../src/core/store/splits.js'
 import { getPool } from '../src/core/sync/pool.js'
@@ -225,6 +226,18 @@ export function registerTriageIpc(): void {
   ipcMain.handle('triage:zero', (_e, folderId: number, opts: ZeroOptions, dryRun: boolean) => {
     const ids = zeroCandidates(folderId, opts)
     if (dryRun) return { ok: true as const, count: ids.length }
+    return holdMove(ids, { role: 'archive' })
+  })
+
+  // Auto-clean: noise grouped by sender for review; Done takes sender
+  // addresses and re-reads the groups, so the renderer never names message ids.
+  ipcMain.handle('triage:cleanGroups', (_e, folderId: number) =>
+    cleanGroups(folderId).map(({ ids: _ids, ...g }) => g)
+  )
+  ipcMain.handle('triage:clean', (_e, folderId: number, senders: string[]) => {
+    const pick = new Set(senders)
+    const ids = cleanGroups(folderId).flatMap((g) => (pick.has(g.sender) ? g.ids : []))
+    if (!ids.length) return { ok: false as const, error: 'Nothing to clean' }
     return holdMove(ids, { role: 'archive' })
   })
 }

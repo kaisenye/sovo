@@ -4,6 +4,9 @@ import type { AiProviderId } from './types.js'
  * US$ per million tokens, [input, output], standard tier.
  * Anthropic: the claude-api skill's model table (cached 2026-10-06).
  * OpenAI: developers.openai.com/api/docs/pricing, short context, read 2026-10-30.
+ * DeepSeek: api-docs.deepseek.com/quick_start/pricing, read 2026-11-02. Peak-hour
+ * rates (off-peak is half) and every input token at the cache-miss price, so the
+ * budget never under-counts.
  * Update both when a provider changes prices; the budget is only as good as this.
  */
 export const PRICES: Record<AiProviderId, Record<string, [number, number]>> = {
@@ -33,6 +36,12 @@ export const PRICES: Record<AiProviderId, Record<string, [number, number]>> = {
     'gpt-5.5': [5, 30],
     'gpt-5.4-mini': [0.75, 4.5],
     'gpt-5.4-nano': [0.2, 1.25]
+  },
+  deepseek: {
+    'deepseek-flash': [0.3, 1.2],
+    // Legacy name, routed to Flash and billed as Flash.
+    'deepseek-v4-flash': [0.3, 1.2],
+    'deepseek-v4-pro': [1.32, 3.96]
   }
 }
 

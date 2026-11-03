@@ -1,9 +1,13 @@
 import { AI_FEATURES, AI_PROVIDERS, type AiFeature, type AiProviderId } from './types.js'
 
-/** Sonnet 5.5 (Anthropic) and GPT-6.1 Sol (OpenAI): current, same price tier. Editable in Settings. */
+/**
+ * Sonnet 5.5 (Anthropic) and GPT-6.1 Sol (OpenAI): current, same price tier.
+ * DeepSeek Flash (V4.1): DeepSeek's current general model. Editable in Settings.
+ */
 export const DEFAULT_MODELS: Record<AiProviderId, string> = {
   anthropic: 'claude-sonnet-5-5',
-  openai: 'gpt-6.1-sol'
+  openai: 'gpt-6.1-sol',
+  deepseek: 'deepseek-flash'
 }
 export const DEFAULT_BUDGET_USD = 1
 export const MAX_BUDGET_USD = 100

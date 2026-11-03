@@ -23,6 +23,7 @@ import { getSettings, listAccounts as storedAccounts } from '../src/core/store/r
 import { recordAiUsage, spentMicros } from '../src/core/store/ai.js'
 import { initAi } from '../src/core/services/ai/index.js'
 import { createAnthropicProvider } from '../src/core/services/ai/anthropic.js'
+import { createDeepSeekProvider } from '../src/core/services/ai/deepseek.js'
 import { createOpenAiProvider } from '../src/core/services/ai/openai.js'
 import { aiKey } from '../src/core/services/ai/keys.js'
 import { onScheduledCancelled } from '../src/core/send/cancelOnReply.js'
@@ -111,7 +112,8 @@ function startAi(): void {
     usage: { spentMicros, record: recordAiUsage },
     providers: {
       anthropic: createAnthropicProvider({ baseURL: override('SOVO_ANTHROPIC_BASE_URL') }),
-      openai: createOpenAiProvider({ baseURL: override('SOVO_OPENAI_BASE_URL') })
+      openai: createOpenAiProvider({ baseURL: override('SOVO_OPENAI_BASE_URL') }),
+      deepseek: createDeepSeekProvider({ baseURL: override('SOVO_DEEPSEEK_BASE_URL') })
     }
   })
 }

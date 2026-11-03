@@ -1,6 +1,6 @@
 /** Providers a user can bring a key for. */
-export type AiProviderId = 'anthropic' | 'openai'
-export const AI_PROVIDERS: AiProviderId[] = ['anthropic', 'openai']
+export type AiProviderId = 'anthropic' | 'openai' | 'deepseek'
+export const AI_PROVIDERS: AiProviderId[] = ['anthropic', 'openai', 'deepseek']
 
 /** Each feature has its own switch in Settings → AI. */
 export type AiFeature = 'write' | 'replies' | 'summary' | 'classify' | 'ask'

@@ -1,5 +1,6 @@
 import type { Ai } from '../services/ai/service.js'
 import { AiError, type AiRequest } from '../services/ai/types.js'
+import { historySection } from './history.js'
 import { MAIL_IS_DATA } from './mailText.js'
 
 export type WriteAction = 'draft' | 'shorten' | 'fix' | 'friendlier' | 'formal'
@@ -15,6 +16,8 @@ export interface WriteInput {
   scope?: 'selection' | 'message'
   /** Draft only: the conversation being replied to (transcript()). */
   thread?: string
+  /** Draft only: earlier conversations with the person being written to (pastThreads()). */
+  history?: string
   myName?: string | null
 }
 
@@ -39,6 +42,7 @@ export function writeRequest(input: WriteInput): AiRequest {
           MAIL_IS_DATA
         ].join(' '),
         prompt: [
+          historySection(input.history),
           input.thread ? `The conversation so far, oldest first:\n${input.thread}` : '',
           `<draft>\n${input.text.trim()}\n</draft>`,
           `Replace it with: ${what}`
@@ -53,9 +57,11 @@ export function writeRequest(input: WriteInput): AiRequest {
         `You write email text for the user${input.myName ? ` (${input.myName})` : ''}.`,
         'Reply with the email body only: no subject line, no placeholders like [Name], no signature, no commentary.',
         'Write in the language of the conversation when there is one.',
+        'When earlier conversations with this person are given, match how the user writes to them and stay consistent with what was said there.',
         MAIL_IS_DATA
       ].join(' '),
       prompt: [
+        historySection(input.history),
         input.thread ? `The conversation so far, oldest first:\n${input.thread}` : '',
         input.text.trim() ? `What the user has written so far:\n<draft>\n${input.text.trim()}\n</draft>` : '',
         `Write: ${what}`

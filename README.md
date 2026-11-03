@@ -31,7 +31,7 @@
 - **Keyboard-first.** Every action is a key, every key is remappable, and `⌘K` reaches everything else.
 - **Yours.** No Sovo server. Credentials sit in the OS keychain, mail in a local database, and the whole mailbox works offline.
 - **Any provider.** Gmail and Outlook over OAuth, plus any IMAP/SMTP host. Tuned for Tencent Exmail.
-- **AI on your own key.** Write with AI, Instant Reply, summaries, Important / Other, Ask AI. Off until you add an Anthropic or OpenAI key.
+- **AI on your own key.** Write with AI, Instant Reply, summaries, Important / Other, Ask AI. Off until you add an Anthropic, OpenAI or DeepSeek key.
 
 ## Quick start
 
@@ -79,7 +79,7 @@ see [`.env.example`](./.env.example)).
 | `MAIN_VITE_MS_CLIENT_ID` | Continue with Microsoft |
 | `SOVO_EMAIL`, `SOVO_PASS`, `SOVO_NAME` | Pre-seed a password account instead of the setup screen |
 | `SOVO_IMAP_HOST`, `SOVO_IMAP_PORT`, `SOVO_SMTP_HOST`, `SOVO_SMTP_PORT` | Servers for that account (default: Exmail) |
-| `SOVO_ANTHROPIC_BASE_URL`, `SOVO_OPENAI_BASE_URL` | Point AI at the mock server (dev only) |
+| `SOVO_ANTHROPIC_BASE_URL`, `SOVO_OPENAI_BASE_URL`, `SOVO_DEEPSEEK_BASE_URL` | Point AI at the mock server (dev only) |
 
 `MAIN_VITE_*` values are baked in at build time, so restart `pnpm dev` after
 changing them. The older `SUPERMAIL_*` and `ROMO_*` names still work.
@@ -110,7 +110,7 @@ on **Allow public client flows**, and add the delegated permissions
 
 ```bash
 pnpm ai:mock 4010
-SOVO_ANTHROPIC_BASE_URL=http://127.0.0.1:4010 SOVO_OPENAI_BASE_URL=http://127.0.0.1:4010/v1 pnpm dev
+SOVO_ANTHROPIC_BASE_URL=http://127.0.0.1:4010 SOVO_OPENAI_BASE_URL=http://127.0.0.1:4010/v1 SOVO_DEEPSEEK_BASE_URL=http://127.0.0.1:4010 pnpm dev
 ```
 
 Any key works against the mock. A packaged build ignores both variables.

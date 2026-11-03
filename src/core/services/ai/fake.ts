@@ -26,7 +26,7 @@ export function fakeAi(
     provider: 'anthropic',
     models: DEFAULT_MODELS,
     defaultModels: DEFAULT_MODELS,
-    hasKey: { anthropic: hasKey, openai: false },
+    hasKey: { anthropic: hasKey, openai: false, deepseek: false },
     budgetUsd: 1,
     spentTodayUsd: 0,
     toggles: features,

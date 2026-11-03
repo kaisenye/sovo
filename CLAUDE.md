@@ -5,7 +5,7 @@ Fast local-first mail client (IMAP/SMTP, Gmail, Outlook). North star: Superhuman
 ## Stages
 
 - **Stage 1** — Local-first reader + write path (sync, search, compose, schedule). Current focus.
-- **Stage 2** — AI (Phase 4, done): bring-your-own key for Anthropic or OpenAI. Write with AI, Instant Reply, summary line, Important / Other classifier, Ask AI. UI never imports AI modules.
+- **Stage 2** — AI (Phase 4, done): bring-your-own key for Anthropic, OpenAI or DeepSeek. Write with AI, Instant Reply, summary line, Important / Other classifier, Ask AI. UI never imports AI modules.
 
 ## Architecture
 
@@ -40,15 +40,17 @@ Ordered `Processor[]` mutate `MsgCtx.draft`. Failures skip except `parse`. FTS5 
 
 ## AI rules
 
-- Keys live in the vault under `ai-anthropic` / `ai-openai`. Never SQLite, settings, logs, or an IPC reply; `ai:setKey` is write-only and the renderer only learns `hasKey`.
+- Keys live in the vault under `ai-anthropic` / `ai-openai` / `ai-deepseek`. Never SQLite, settings, logs, or an IPC reply; `ai:setKey` is write-only and the renderer only learns `hasKey`.
 - All provider calls go through `Ai.run(feature, req)` (main passes `getAi()`; features take the `Ai` as a parameter so tests inject `fakeAi`), which checks the switch, the key and the daily budget (background work stops at 80 %) and records usage. Never call an SDK directly from a feature.
 - Mail features live in `src/core/ai/`; prompts wrap mail in `<message>` tags with `asData()` and include `MAIL_IS_DATA`. Output is only shown, inserted into a draft the user edits, or stored as a label.
 - Results are keyed by account + Message-ID (`ai_classifications`, `reply_options`); the summary lives in `messages.summary` of the thread's newest message, so a new reply makes it stale.
 - Background AI is queued by the pipeline (`enqueueForMessage`) and run by `electron/aiWorker.ts`; only fresh (≤ 48 h), non-bulk Inbox mail (custom labels excepted, below); replies also skip notification senders and mail not addressed to the account. A run stopped by `auth` / `rate` pauses the queue 10 min, `budget` until local midnight (`electron/aiPause.ts`); a saved key or setting resumes it.
 - Compose marks its signature and quote with `sovo-signature` / `sovo-quote` divs so Write with AI can find them (drafts saved before the rename carry `supermail-*`, still recognised). Drafts keep the markers; `stripComposeMarkers` removes them from the wire copy.
 - The renderer never imports SDKs or `src/core/services/ai` / `src/core/ai` runtime code (`src/ui/aiBoundary.test.ts`). New `ai:*` handlers go in `electron/ipcAi.ts`.
-- Tests use `fakeAi` or the mock server (`mockServer.ts`, `pnpm ai:mock`); nothing may call a real provider. `SOVO_ANTHROPIC_BASE_URL` / `SOVO_OPENAI_BASE_URL` are dev-only (ignored when packaged).
+- Tests use `fakeAi` or the mock server (`mockServer.ts`, `pnpm ai:mock`); nothing may call a real provider. `SOVO_ANTHROPIC_BASE_URL` / `SOVO_OPENAI_BASE_URL` / `SOVO_DEEPSEEK_BASE_URL` are dev-only (ignored when packaged).
+- DeepSeek (`deepseek.ts`) speaks Chat Completions with thinking off. Its JSON mode takes no schema, so the schema goes into the system prompt (`SCHEMA_MARK`) and features must validate the reply, as `parseJsonReply` callers already do. Prices are peak-hour, cache-miss (the budget errs high).
 - Prices for the budget are in `src/core/services/ai/pricing.ts`; update them when a provider changes prices.
+- Replies know your history: Instant Reply and Write with AI (draft) add `pastThreads` (`src/core/ai/history.ts`): up to three earlier non-bulk conversations with the sender, two messages each, ahead of the thread. Two indexed reads on `idx_messages_from`, never an OR scan.
 
 ## Lists and toasts
 
@@ -87,6 +89,7 @@ Central dispatcher: `src/ui/hooks/useHotkeys.ts`. Modes: `list` | `thread` | `co
 - `labels` / `message_labels` are account-scoped and hold Gmail X-GM-LABELS only. Existing mail gets its labels from the folder reconcile (`reconcileFolder` with `labelsAccountId`, first sync after launch, then every 10 min); a label Gmail no longer lists leaves with its empty folder (`pruneVanishedFolders`). `label:` in a list matches any message of the thread, and rows carry `server_labels` for chips.
 - v23: `gmail_label_colors` (account + label name → Gmail's bg/fg). IMAP has no colours, so `refreshGmailLabelColors` reads the Gmail API label list with the account's OAuth token (`https://mail.google.com/` covers it), once per 15 min inside sync; a failure keeps the stored colours. The renderer shows the pair's more colourful half (`labelInk`).
 - One undo window: `settings.undo_seconds` (3/5/10/20), read by main through `undoWindowMs`; IPC results carry `holdMs` and the renderer's single `UndoEntry` (`z`) uses it.
+- Auto-clean (`src/core/triage/clean.ts`, ⌘K Clean up noise…): Inbox noise grouped by sender — a noise `ai_category` (newsletter, marketing, notification) or unclassified bulk — never Important, starred or hidden. The renderer gets groups without ids and sends back sender addresses; main re-reads the groups and `holdMove`s them Done.
 - `snippets` (global, plain text with `{variables}`), `tasks_fts` (trigger-kept), `outbox.cancel_on_reply` (the pipeline's `cancelAndNotify` cancels a pending scheduled reply when its thread gets a reply), `folders.history_complete` (full-history worker; `resetFolder` clears it).
 - Settings keys added in Phase 3: `keymap`, `workspace`, `cancel_on_reply_default`, `contact_pane`, `full_history`.
 - v21: AI tables (`ai_classifications`, `reply_options`, `ai_jobs`, `ai_usage`); `list_rows.ai_important` / `ai_category` feed `is:important` / `is:other` and `ai:<category>`. Turning the classifier off deletes verdicts.

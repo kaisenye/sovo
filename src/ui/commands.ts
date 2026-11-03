@@ -66,6 +66,7 @@ export type CommandId =
   | 'msg.select'
   | 'undo'
   | 'triage.zero'
+  | 'triage.clean'
   | 'ai.ask'
   | 'split.next'
   | 'split.prev'
@@ -232,6 +233,7 @@ export const COMMANDS: Command[] = [
   { id: 'msg.select', title: 'Select', group: 'Message', keys: [{ kind: 'key', key: 'x', modes: ['list'] }] },
   { id: 'undo', title: 'Undo', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'z', modes: LIST_THREAD }] },
   { id: 'triage.zero', title: 'Get me to zero…', group: 'General', palette: true, keys: [] },
+  { id: 'triage.clean', title: 'Clean up noise…', group: 'General', palette: true, keys: [] },
   // Inside ⌘K, ⇥ switches to Ask AI (palette-local); ⌘J opens the palette there directly.
   { id: 'ai.ask', title: 'Ask AI about your mail', group: 'General', keys: [{ kind: 'mod', key: 'j', modes: NAV_MODES }] },
 

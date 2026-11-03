@@ -27,7 +27,7 @@ function setup(opts: {
   const ai = createAi({
     settings: () => opts.settings ?? { ai_summary: '1' },
     key: (p) => (opts.keys ?? { anthropic: KEY })[p] ?? null,
-    providers: { anthropic: provider('anthropic'), openai: provider('openai') },
+    providers: { anthropic: provider('anthropic'), openai: provider('openai'), deepseek: provider('deepseek') },
     usage: {
       spentMicros: (day) => (day === localDay(NOW) ? (opts.spent ?? 0) : 0),
       record: (u) => void records.push(u)
@@ -104,7 +104,8 @@ describe('the AI service', () => {
             throw new AiError('refused', `declined ${KEY}`, usage)
           }
         },
-        openai: { id: 'openai', complete: async () => ({ text: '', model: '', inputTokens: 0, outputTokens: 0 }) }
+        openai: { id: 'openai', complete: async () => ({ text: '', model: '', inputTokens: 0, outputTokens: 0 }) },
+        deepseek: { id: 'deepseek', complete: async () => ({ text: '', model: '', inputTokens: 0, outputTokens: 0 }) }
       },
       usage: {
         spentMicros: () => spent,
@@ -135,7 +136,7 @@ describe('the AI service', () => {
   it('reports a feature as on only when its provider has a key', () => {
     const on = setup({ settings: { ai_summary: '1', ai_ask: '1' } }).ai.status()
     expect(on.features).toMatchObject({ summary: true, ask: true, write: false })
-    expect(on.hasKey).toEqual({ anthropic: true, openai: false })
+    expect(on.hasKey).toEqual({ anthropic: true, openai: false, deepseek: false })
     const off = setup({ settings: { ai_summary: '1' }, keys: {} }).ai.status()
     expect(off.toggles.summary).toBe(true)
     expect(off.features.summary).toBe(false)

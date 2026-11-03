@@ -86,10 +86,12 @@ export interface AiWriteInput {
 
 export interface AiWriteDeps {
   ai: Ai
-  message(id: number): { account_id: number; thread_id: string | null } | undefined
+  message(id: number): { id: number; account_id: number; thread_id: string | null; from_addr: string | null } | undefined
   /** Newest first, as getThread returns it. */
   thread(accountId: number, threadId: string): TranscriptMessage[]
   displayName(accountId: number): string | null
+  /** Earlier conversations with a person (core/ai/history.ts pastThreads). */
+  history?(accountId: number, address: string | null, excludeThreadKey: string): string
 }
 
 /**
@@ -103,12 +105,15 @@ export async function aiWrite(
   try {
     if (!WRITE_ACTIONS.includes(input?.action)) throw new AiError('invalid', 'Unknown action')
     let thread: string | undefined
+    let history: string | undefined
     let myName: string | null = null
     const src = input.sourceMessageId ? deps.message(input.sourceMessageId) : undefined
     if (src) {
       myName = deps.displayName(src.account_id)
       if (input.action === 'draft' && src.thread_id)
         thread = transcript(deps.thread(src.account_id, src.thread_id).slice(0, 8))
+      if (input.action === 'draft')
+        history = deps.history?.(src.account_id, src.from_addr, src.thread_id ?? `#${src.id}`) || undefined
     }
     const text = await writeWithAi(deps.ai, {
       action: input.action,
@@ -116,6 +121,7 @@ export async function aiWrite(
       instruction: input.instruction,
       scope: input.scope === 'selection' ? 'selection' : 'message',
       thread,
+      history,
       myName
     })
     return { ok: true, text }

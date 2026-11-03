@@ -4,6 +4,7 @@ import type { MoveTarget } from '../src/core/store/folderRoles.js'
 import type { SyncProgress } from '../src/core/sync/syncEngine.js'
 import type { MailProvider } from '../src/core/accounts/auth.js'
 import type { ReminderSnapshot } from '../src/core/triage/reminders.js'
+import type { CleanGroup } from '../src/core/triage/clean.js'
 import type { ContactProfile } from '../src/core/store/contacts.js'
 import type { AiStatus } from '../src/core/services/ai/service.js'
 import type { AiConfigInput } from '../src/core/services/ai/settings.js'
@@ -173,6 +174,8 @@ export interface TaskQuery {
 
 type TaskResult = { ok: true; task: Task } | { ok: false; error: string }
 
+/** Auto-clean's review row: one sender's noise, without the message ids main keeps. */
+export type CleanGroupView = Omit<CleanGroup, 'ids'>
 export type { AiConfigInput, AiFeature, AiLabel, AiProviderId, AiStatus, AskSource, WriteAction }
 
 /** Every AI call fails the same way; `code` tells the UI whether to point at Settings. */
@@ -343,6 +346,13 @@ const api = {
   ): Promise<
     { ok: true; batchId: number; moved: number[]; holdMs: number } | { ok: false; error: string }
   > => ipcRenderer.invoke('triage:zero', folderId, opts, false),
+  cleanGroups: (folderId: number): Promise<CleanGroupView[]> => ipcRenderer.invoke('triage:cleanGroups', folderId),
+  clean: (
+    folderId: number,
+    senders: string[]
+  ): Promise<
+    { ok: true; batchId: number; moved: number[]; holdMs: number } | { ok: false; error: string }
+  > => ipcRenderer.invoke('triage:clean', folderId, senders),
   deleteDraft: (id: number): Promise<{ ok: true } | { ok: false; error: string }> =>
     ipcRenderer.invoke('draft:delete', id),
   loadOlder: (

@@ -1,17 +1,20 @@
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { pathToFileURL } from 'node:url'
+import { SCHEMA_MARK } from './deepseek.js'
 
 /**
- * A local stand-in for the Anthropic Messages API and the OpenAI Responses
- * API. Tests start it on port 0; manual QA runs `pnpm ai:mock 4010` and points
- * the app at it (SOVO_ANTHROPIC_BASE_URL / SOVO_OPENAI_BASE_URL).
+ * A local stand-in for the Anthropic Messages API, the OpenAI Responses API
+ * and DeepSeek's Chat Completions. Tests start it on port 0; manual QA runs
+ * `pnpm ai:mock 4010` and points the app at it (SOVO_ANTHROPIC_BASE_URL /
+ * SOVO_OPENAI_BASE_URL / SOVO_DEEPSEEK_BASE_URL).
  * It never forwards anything anywhere.
  *
  * Put MOCK_401 anywhere in a prompt to get a rejected-key error, or
  * MOCK_TRUNCATE to get a reply cut off at the token limit (partial text,
- * stop_reason 'max_tokens' / status 'incomplete'), or MOCK_REFUSE to get a
- * refusal (Anthropic stop_reason 'refusal' / OpenAI empty output). Every 200
+ * stop_reason 'max_tokens' / status 'incomplete' / finish_reason 'length'), or
+ * MOCK_REFUSE to get a refusal (Anthropic stop_reason 'refusal' / OpenAI empty
+ * output / DeepSeek finish_reason 'content_filter'). Every 200
  * reply bills 120 input and 30 output tokens.
  */
 
@@ -42,10 +45,18 @@ function pick(o: unknown, ...path: string[]): unknown {
   return cur
 }
 
+/** DeepSeek takes no schema parameter: the provider writes it at the end of the system prompt. */
+function deepseekSchema(body: Record<string, unknown>): unknown {
+  if (pick(body, 'response_format', 'type') !== 'json_object') return null
+  const sys = pick(body, 'messages', '0', 'content')
+  const at = typeof sys === 'string' ? sys.lastIndexOf(SCHEMA_MARK) : -1
+  return at < 0 ? null : JSON.parse((sys as string).slice(at + SCHEMA_MARK.length))
+}
+
 /** The canned answer: by the JSON schema the request asks for, else plain text. */
 export function mockAnswer(body: Record<string, unknown>): string {
   const schema = JSON.stringify(
-    pick(body, 'output_config', 'format', 'schema') ?? pick(body, 'text', 'format', 'schema') ?? null
+    pick(body, 'output_config', 'format', 'schema') ?? pick(body, 'text', 'format', 'schema') ?? deepseekSchema(body)
   )
   if (schema.includes('"important"')) return JSON.stringify(MOCK_CLASSIFICATION)
   if (schema.includes('"options"')) return JSON.stringify(MOCK_REPLIES)
@@ -119,6 +130,27 @@ function openai(res: ServerResponse, body: Record<string, unknown>, raw: string)
   })
 }
 
+function deepseek(res: ServerResponse, body: Record<string, unknown>, raw: string): void {
+  if (raw.includes('MOCK_401'))
+    return send(res, 401, { error: { message: 'Authentication Fails', type: 'authentication_error', code: 'invalid_request_error' } })
+  const truncate = raw.includes('MOCK_TRUNCATE')
+  const refuse = raw.includes('MOCK_REFUSE')
+  send(res, 200, {
+    id: 'chatcmpl_mock',
+    object: 'chat.completion',
+    created: Math.floor(Date.now() / 1000),
+    model: body.model,
+    choices: [
+      {
+        index: 0,
+        message: { role: 'assistant', content: refuse ? '' : truncate ? MOCK_PARTIAL : mockAnswer(body) },
+        finish_reason: refuse ? 'content_filter' : truncate ? 'length' : 'stop'
+      }
+    ],
+    usage: { prompt_tokens: 120, completion_tokens: 30, total_tokens: 150, prompt_cache_hit_tokens: 0, prompt_cache_miss_tokens: 120 }
+  })
+}
+
 export function startMockAiServer(port = 0, log = false): Promise<MockAiServer> {
   const calls: MockCall[] = []
   const server = createServer((req, res) => {
@@ -137,6 +169,7 @@ export function startMockAiServer(port = 0, log = false): Promise<MockAiServer> 
       if (log) console.log(`[ai-mock] ${req.method} ${path} model=${String(body.model)}`)
       if (req.method === 'POST' && path === '/v1/messages') return anthropic(res, body, raw)
       if (req.method === 'POST' && path === '/v1/responses') return openai(res, body, raw)
+      if (req.method === 'POST' && path === '/chat/completions') return deepseek(res, body, raw)
       send(res, 404, { error: { message: `mock has no ${path}` } })
     })
   })
@@ -163,6 +196,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.argv[2] ?? 4010)
   void startMockAiServer(port, true).then((m) => {
     console.log(`Mock AI server on ${m.url}`)
-    console.log(`  SOVO_ANTHROPIC_BASE_URL=${m.url} SOVO_OPENAI_BASE_URL=${m.url}/v1 pnpm dev`)
+    console.log(`  SOVO_ANTHROPIC_BASE_URL=${m.url} SOVO_OPENAI_BASE_URL=${m.url}/v1 SOVO_DEEPSEEK_BASE_URL=${m.url} pnpm dev`)
   })
 }

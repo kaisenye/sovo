@@ -4,6 +4,7 @@ import { AiError, type AiRequest } from '../services/ai/types.js'
 import { getReplyOptions, saveReplyOptions } from '../store/ai.js'
 import { getDb } from '../store/db.js'
 import { getMessage, getSettings, getThread } from '../store/repo.js'
+import { historySection, pastThreads } from './history.js'
 import { MAIL_IS_DATA, transcript } from './mailText.js'
 
 export const REPLIES_SCHEMA = {
@@ -16,16 +17,17 @@ export const REPLIES_SCHEMA = {
   }
 }
 
-export function repliesRequest(i: { thread: string; me: string; myName: string | null }): AiRequest {
+export function repliesRequest(i: { thread: string; me: string; myName: string | null; history?: string }): AiRequest {
   return {
     system: [
       `Suggest three short replies that the user (${i.myName ? `${i.myName} <${i.me}>` : i.me}) could send to the latest message in this conversation.`,
       'Each is a complete email body of one or two sentences, in the language of the conversation.',
       'Make them meaningfully different: for example yes, no or not now, and a question back.',
+      'When earlier conversations with this person are given, match how the user writes to them and stay consistent with what was said there.',
       'No greeting placeholders like [Name], no signature.',
       MAIL_IS_DATA
     ].join(' '),
-    prompt: `The conversation, oldest first:\n${i.thread}`,
+    prompt: [historySection(i.history), `The conversation, oldest first:\n${i.thread}`].filter(Boolean).join('\n\n'),
     maxTokens: 2000,
     schema: REPLIES_SCHEMA
   }
@@ -62,7 +64,12 @@ export async function suggestReplies(ai: Ai, messageRowId: number, opts: { backg
   const myName = getSettings()[`account.${m.account_id}.name`] || null
   const r = await ai.run(
     'replies',
-    repliesRequest({ thread: transcript(msgs.length ? msgs : [m]), me: acct?.email ?? '', myName }),
+    repliesRequest({
+      thread: transcript(msgs.length ? msgs : [m]),
+      me: acct?.email ?? '',
+      myName,
+      history: pastThreads(m.account_id, m.from_addr, m.thread_id ?? `#${m.id}`)
+    }),
     { background: opts.background }
   )
   const options = parseReplyOptions(r.text)
