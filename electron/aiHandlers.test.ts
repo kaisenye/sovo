@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { fakeAi } from '../src/core/services/ai/fake.js'
 import { createAi } from '../src/core/services/ai/service.js'
-import { AI_FEATURES, type AiProvider, type AiProviderId } from '../src/core/services/ai/types.js'
+import { AI_FEATURES, type AiKeyOwner, type AiProvider, type AiProviderId } from '../src/core/services/ai/types.js'
 import { aiWrite, createAiHandlers, type AiWriteDeps } from './aiHandlers.js'
 
 const KEY = 'sk-test-0123456789'
 const allOn = Object.fromEntries(AI_FEATURES.map((f) => [`ai_${f}`, '1']))
 
 /** The real service over in-memory settings and vault, wired the way main wires it. */
-function setup(settings: Record<string, string>, keys: Partial<Record<AiProviderId, string>>) {
-  const vault = new Map(Object.entries(keys)) as Map<AiProviderId, string>
+function setup(settings: Record<string, string>, keys: Partial<Record<AiKeyOwner, string>>) {
+  const vault = new Map(Object.entries(keys)) as Map<AiKeyOwner, string>
   const provider = (id: AiProviderId): AiProvider => ({
     id,
     complete: async () => ({ text: 'ok', model: 'm', inputTokens: 0, outputTokens: 0 })

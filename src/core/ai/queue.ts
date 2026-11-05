@@ -1,5 +1,5 @@
 import type { Ai } from '../services/ai/service.js'
-import { readAiSettings } from '../services/ai/settings.js'
+import { keyOwnerFor, readAiSettings } from '../services/ai/settings.js'
 import { AiError, type AiErrorCode } from '../services/ai/types.js'
 import { listAiLabels } from '../store/aiLabels.js'
 import { dueAiJobs, enqueueAiJob, expireAiJobs, finishAiJob, pruneAiJobs, retryAiJob, type AiJob, type AiJobKind } from '../store/ai.js'
@@ -83,7 +83,9 @@ export async function runAiJobs(
   const due = dueAiJobs(now, limit)
   if (!due.length) return { done, stopped: null }
   const st = deps.ai.status()
-  if (!st.hasKey[st.provider]) return { done, stopped: 'no-key' }
+  // Nothing switched on has its key (the main provider's, or TypeSafe's for sorting on Jev).
+  const owners = BACKGROUND_KINDS.filter((k) => st.toggles[KIND_FEATURE[k]]).map((k) => keyOwnerFor(KIND_FEATURE[k], st))
+  if (!owners.some((o) => st.hasKey[o])) return { done, stopped: 'no-key' }
   refreshListRows()
   for (const job of due) {
     const stop = await runOne(deps, job, st.features[KIND_FEATURE[job.kind]], now)

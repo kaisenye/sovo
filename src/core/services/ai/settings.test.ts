@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { aiConfigPatch, DEFAULT_MODELS, readAiSettings } from './settings.js'
 
-const noKeys = { anthropic: false, openai: false, deepseek: false }
+const noKeys = { anthropic: false, openai: false, deepseek: false, typesafe: false }
 
 describe('AI settings', () => {
   it('defaults to Anthropic, the default models, $1 a day and everything off', () => {
@@ -9,7 +9,8 @@ describe('AI settings', () => {
       provider: 'anthropic',
       models: DEFAULT_MODELS,
       budgetUsd: 1,
-      toggles: { write: false, replies: false, summary: false, classify: false, ask: false }
+      toggles: { write: false, replies: false, summary: false, classify: false, ask: false },
+      sortEngine: 'provider'
     })
     expect(DEFAULT_MODELS).toEqual({ anthropic: 'claude-sonnet-5-5', openai: 'gpt-6.1-sol', deepseek: 'deepseek-flash' })
   })
@@ -34,7 +35,7 @@ describe('AI settings', () => {
   })
 
   it('turns a config change into settings, refusing what main must not accept', () => {
-    const ctx = { provider: 'anthropic' as const, hasKey: { anthropic: true, openai: false, deepseek: false } }
+    const ctx = { provider: 'anthropic' as const, hasKey: { anthropic: true, openai: false, deepseek: false, typesafe: false } }
     expect(aiConfigPatch({ provider: 'openai' }, ctx)).toEqual({
       ai_provider: 'openai',
       ai_write: '0',

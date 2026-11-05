@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { parseJsonReply } from './json.js'
 import { costMicros, priceFor } from './pricing.js'
 import { BACKGROUND_SHARE, createAi, localDay, scrub, type UsageRecord } from './service.js'
-import { AiError, type AiProvider, type AiProviderId, type AiRequest } from './types.js'
+import { AiError, type AiKeyOwner, type AiProvider, type AiProviderId, type AiRequest } from './types.js'
 
 const NOW = new Date(2026, 9, 30, 12).getTime()
 const KEY = 'sk-ant-test-0123456789'
 
 function setup(opts: {
   settings?: Record<string, string>
-  keys?: Partial<Record<AiProviderId, string>>
+  keys?: Partial<Record<AiKeyOwner, string>>
   spent?: number
   reply?: (req: AiRequest, model: string, provider: AiProviderId) => string
   fail?: Error
@@ -136,7 +136,7 @@ describe('the AI service', () => {
   it('reports a feature as on only when its provider has a key', () => {
     const on = setup({ settings: { ai_summary: '1', ai_ask: '1' } }).ai.status()
     expect(on.features).toMatchObject({ summary: true, ask: true, write: false })
-    expect(on.hasKey).toEqual({ anthropic: true, openai: false, deepseek: false })
+    expect(on.hasKey).toEqual({ anthropic: true, openai: false, deepseek: false, typesafe: false })
     const off = setup({ settings: { ai_summary: '1' }, keys: {} }).ai.status()
     expect(off.toggles.summary).toBe(true)
     expect(off.features.summary).toBe(false)

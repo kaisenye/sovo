@@ -8,7 +8,7 @@ import { summarizeThreadOnce } from '../src/core/ai/summary.js'
 import { getAi } from '../src/core/services/ai/index.js'
 import { clearAiKey, saveAiKey } from '../src/core/services/ai/keys.js'
 import type { AiConfigInput } from '../src/core/services/ai/settings.js'
-import { AiError, type AiProviderId } from '../src/core/services/ai/types.js'
+import { AiError, type AiKeyOwner } from '../src/core/services/ai/types.js'
 import { clearClassifications } from '../src/core/store/ai.js'
 import {
   clearMessageLabels,
@@ -60,8 +60,8 @@ export function registerAiIpc(): void {
     if (r.ok) resumeAiWorker()
     return r
   }
-  ipcMain.handle('ai:setKey', (_e, provider: AiProviderId, key: string) => resumeIfOk(h.setKey(provider, key)))
-  ipcMain.handle('ai:clearKey', (_e, provider: AiProviderId) => h.clearKey(provider))
+  ipcMain.handle('ai:setKey', (_e, provider: AiKeyOwner, key: string) => resumeIfOk(h.setKey(provider, key)))
+  ipcMain.handle('ai:clearKey', (_e, provider: AiKeyOwner) => h.clearKey(provider))
   ipcMain.handle('ai:setConfig', (_e, input: AiConfigInput) => resumeIfOk(h.setConfig(input)))
   ipcMain.handle('ai:write', (_e, input: AiWriteInput) =>
     aiWrite({ ai: getAi(), message: getMessage, thread: getThread, displayName: displayNameFor, history: pastThreads }, input)

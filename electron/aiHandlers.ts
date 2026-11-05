@@ -1,8 +1,8 @@
 import { transcript, type TranscriptMessage } from '../src/core/ai/mailText.js'
 import { WRITE_ACTIONS, writeWithAi, type WriteAction } from '../src/core/ai/write.js'
-import { aiConfigPatch, AI_KEYS, readAiSettings, type AiConfigInput } from '../src/core/services/ai/settings.js'
+import { aiConfigPatch, AI_KEYS, keyOwnerFor, readAiSettings, type AiConfigInput } from '../src/core/services/ai/settings.js'
 import type { Ai, AiStatus } from '../src/core/services/ai/service.js'
-import { AI_FEATURES, AI_PROVIDERS, AiError, type AiErrorCode, type AiProviderId } from '../src/core/services/ai/types.js'
+import { AI_FEATURES, AI_KEY_OWNERS, AiError, type AiErrorCode, type AiKeyOwner } from '../src/core/services/ai/types.js'
 
 /** How an AI failure crosses IPC: a code and a message, never the key (the service scrubs it). */
 export function aiFail(e: unknown): { ok: false; code: AiErrorCode; error: string } {
@@ -11,14 +11,14 @@ export function aiFail(e: unknown): { ok: false; code: AiErrorCode; error: strin
     : { ok: false, code: 'failed', error: e instanceof Error ? e.message : String(e) }
 }
 
-const isProvider = (p: unknown): p is AiProviderId => AI_PROVIDERS.includes(p as AiProviderId)
+const isKeyOwner = (p: unknown): p is AiKeyOwner => AI_KEY_OWNERS.includes(p as AiKeyOwner)
 
 export interface AiHandlerDeps {
   status(): AiStatus
   settings(): Record<string, string>
   setSetting(key: string, value: string): void
-  saveKey(p: AiProviderId, key: string): void
-  clearKey(p: AiProviderId): void
+  saveKey(p: AiKeyOwner, key: string): void
+  clearKey(p: AiKeyOwner): void
   /** Deletes every stored verdict (store/ai.ts clearClassifications). */
   clearClassifications(): void
 }
@@ -38,9 +38,9 @@ export function createAiHandlers(deps: AiHandlerDeps) {
   }
 
   return {
-    setKey(provider: AiProviderId, key: string): Result {
+    setKey(provider: AiKeyOwner, key: string): Result {
       try {
-        if (!isProvider(provider)) throw new Error('Unknown AI provider')
+        if (!isKeyOwner(provider)) throw new Error('Unknown AI provider')
         deps.saveKey(provider, String(key ?? ''))
         return { ok: true, status: deps.status() }
       } catch (e) {
@@ -48,14 +48,14 @@ export function createAiHandlers(deps: AiHandlerDeps) {
       }
     },
 
-    // Removing the active provider's key switches every feature off, so nothing
-    // turns itself back on when a key is added later.
-    clearKey(provider: AiProviderId): Result {
-      if (!isProvider(provider)) return aiFail(new Error('Unknown AI provider'))
+    // Removing a key switches off every feature that used it, so nothing turns
+    // itself back on when a key is added later.
+    clearKey(provider: AiKeyOwner): Result {
+      if (!isKeyOwner(provider)) return aiFail(new Error('Unknown AI provider'))
       const wasOn = classifyOn()
       deps.clearKey(provider)
-      if (readAiSettings(deps.settings()).provider === provider)
-        for (const f of AI_FEATURES) deps.setSetting(AI_KEYS.feature(f), '0')
+      const s = readAiSettings(deps.settings())
+      for (const f of AI_FEATURES) if (keyOwnerFor(f, s) === provider) deps.setSetting(AI_KEYS.feature(f), '0')
       dropVerdictsIfOff(wasOn)
       return { ok: true, status: deps.status() }
     },
@@ -64,7 +64,7 @@ export function createAiHandlers(deps: AiHandlerDeps) {
     setConfig(input: AiConfigInput): Result {
       try {
         const st = deps.status()
-        const patch = aiConfigPatch(input ?? {}, { provider: st.provider, hasKey: st.hasKey })
+        const patch = aiConfigPatch(input ?? {}, { provider: st.provider, hasKey: st.hasKey, sortEngine: st.sortEngine })
         const wasOn = classifyOn()
         for (const [k, v] of Object.entries(patch)) deps.setSetting(k, v)
         dropVerdictsIfOff(wasOn)

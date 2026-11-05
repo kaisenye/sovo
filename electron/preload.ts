@@ -8,7 +8,7 @@ import type { CleanGroup } from '../src/core/triage/clean.js'
 import type { ContactProfile } from '../src/core/store/contacts.js'
 import type { AiStatus } from '../src/core/services/ai/service.js'
 import type { AiConfigInput } from '../src/core/services/ai/settings.js'
-import type { AiErrorCode, AiFeature, AiProviderId } from '../src/core/services/ai/types.js'
+import type { AiErrorCode, AiFeature, AiKeyOwner, AiProviderId, SortEngine } from '../src/core/services/ai/types.js'
 import type { WriteAction } from '../src/core/ai/write.js'
 import type { ThreadInsights } from '../src/core/ai/insights.js'
 import type { AskSource } from '../src/core/ai/ask.js'
@@ -176,7 +176,7 @@ type TaskResult = { ok: true; task: Task } | { ok: false; error: string }
 
 /** Auto-clean's review row: one sender's noise, without the message ids main keeps. */
 export type CleanGroupView = Omit<CleanGroup, 'ids'>
-export type { AiConfigInput, AiFeature, AiLabel, AiProviderId, AiStatus, AskSource, WriteAction }
+export type { AiConfigInput, AiKeyOwner, SortEngine, AiFeature, AiLabel, AiProviderId, AiStatus, AskSource, WriteAction }
 
 /** Every AI call fails the same way; `code` tells the UI whether to point at Settings. */
 export type AiFailure = { ok: false; code: AiErrorCode; error: string }
@@ -439,9 +439,9 @@ const api = {
   aiDeleteLabel: (id: number): Promise<{ ok: true; label: AiLabel | null }> => ipcRenderer.invoke('ai:deleteLabel', id),
   aiStatus: (): Promise<AiStatus> => ipcRenderer.invoke('ai:status'),
   /** Write-only: the key goes to the vault in main and is never sent back. */
-  aiSetKey: (provider: AiProviderId, key: string): Promise<AiStatusResult> =>
+  aiSetKey: (provider: AiKeyOwner, key: string): Promise<AiStatusResult> =>
     ipcRenderer.invoke('ai:setKey', provider, key),
-  aiClearKey: (provider: AiProviderId): Promise<AiStatusResult> => ipcRenderer.invoke('ai:clearKey', provider),
+  aiClearKey: (provider: AiKeyOwner): Promise<AiStatusResult> => ipcRenderer.invoke('ai:clearKey', provider),
   aiSetConfig: (input: AiConfigInput): Promise<AiStatusResult> => ipcRenderer.invoke('ai:setConfig', input),
   /** Draft or rewrite compose text. Main reads the replied-to thread itself from `sourceMessageId`. */
   aiWrite: (input: {

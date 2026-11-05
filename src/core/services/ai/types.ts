@@ -69,3 +69,40 @@ export class AiError extends Error {
     if (usage) this.usage = usage
   }
 }
+
+/**
+ * Sorting (the classifier and an inbox's own labels) can run on the main
+ * provider or on TypeSafe's Jev, a model that only answers typed questions.
+ */
+export type SortEngine = 'provider' | 'jev'
+export const SORT_ENGINES: SortEngine[] = ['provider', 'jev']
+
+/** Whose key it is: a text provider, or TypeSafe (Jev). Each has its own vault entry. */
+export type AiKeyOwner = AiProviderId | 'typesafe'
+export const AI_KEY_OWNERS: AiKeyOwner[] = [...AI_PROVIDERS, 'typesafe']
+
+/** A Jev question. `noul` answers a probability of yes; `choice` picks one named option. */
+export type SortQuestion =
+  | { type: 'noul'; instructions: string; criteria?: { true: string; false: string } }
+  | { type: 'choice'; instructions: string; criteria: Record<string, string> }
+
+export interface SortRequest {
+  /** What every question is about: here, one email. */
+  state: string
+  questions: Record<string, SortQuestion>
+}
+
+export type SortAnswer =
+  | { type: 'noul'; noul: number }
+  | { type: 'choice'; choice: string; confidence: number; probabilities: Record<string, number> }
+
+export interface SortResult {
+  answers: Record<string, SortAnswer>
+  model: string
+  inputTokens: number
+  outputTokens: number
+}
+
+export interface SortClient {
+  sort(req: SortRequest, opts: AiCallOptions): Promise<SortResult>
+}

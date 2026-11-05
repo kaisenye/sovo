@@ -1,4 +1,4 @@
-import type { AiProviderId } from './types.js'
+import type { AiKeyOwner } from './types.js'
 
 /**
  * US$ per million tokens, [input, output], standard tier.
@@ -7,9 +7,10 @@ import type { AiProviderId } from './types.js'
  * DeepSeek: api-docs.deepseek.com/quick_start/pricing, read 2026-11-02. Peak-hour
  * rates (off-peak is half) and every input token at the cache-miss price, so the
  * budget never under-counts.
+ * TypeSafe (Jev): docs.typesafe.ai/models, read 2026-11-04. Input only; output is free.
  * Update both when a provider changes prices; the budget is only as good as this.
  */
-export const PRICES: Record<AiProviderId, Record<string, [number, number]>> = {
+export const PRICES: Record<AiKeyOwner, Record<string, [number, number]>> = {
   anthropic: {
     'claude-fable-5-1': [10, 50],
     'claude-fable-5': [10, 50],
@@ -42,10 +43,15 @@ export const PRICES: Record<AiProviderId, Record<string, [number, number]>> = {
     // Legacy name, routed to Flash and billed as Flash.
     'deepseek-v4-flash': [0.3, 1.2],
     'deepseek-v4-pro': [1.32, 3.96]
+  },
+  typesafe: {
+    'jev-1.14.0': [0.042, 0],
+    'jev-1.13.0': [0.042, 0],
+    'jev-latest': [0.042, 0]
   }
 }
 
-export function priceFor(provider: AiProviderId, model: string): [number, number] {
+export function priceFor(provider: AiKeyOwner, model: string): [number, number] {
   const table = PRICES[provider]
   if (table[model]) return table[model]
   // A dated snapshot ("gpt-5.5-2026-04-23") prices as its family.
@@ -58,7 +64,7 @@ export function priceFor(provider: AiProviderId, model: string): [number, number
 }
 
 /** A price in US$ per million tokens is micro-dollars per token. */
-export function costMicros(provider: AiProviderId, model: string, inputTokens: number, outputTokens: number): number {
+export function costMicros(provider: AiKeyOwner, model: string, inputTokens: number, outputTokens: number): number {
   const [i, o] = priceFor(provider, model)
   return Math.round(inputTokens * i + outputTokens * o)
 }

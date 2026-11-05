@@ -1,13 +1,13 @@
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { pathToFileURL } from 'node:url'
-import { SCHEMA_MARK } from './deepseek.js'
 
 /**
  * A local stand-in for the Anthropic Messages API, the OpenAI Responses API
- * and DeepSeek's Chat Completions. Tests start it on port 0; manual QA runs
- * `pnpm ai:mock 4010` and points the app at it (SOVO_ANTHROPIC_BASE_URL /
- * SOVO_OPENAI_BASE_URL / SOVO_DEEPSEEK_BASE_URL).
+ * DeepSeek's Chat Completions and TypeSafe's System One (Jev). Tests start it
+ * on port 0; manual QA runs `pnpm ai:mock 4010` and points the app at it
+ * (SOVO_ANTHROPIC_BASE_URL / SOVO_OPENAI_BASE_URL / SOVO_DEEPSEEK_BASE_URL /
+ * SOVO_TYPESAFE_BASE_URL).
  * It never forwards anything anywhere.
  *
  * Put MOCK_401 anywhere in a prompt to get a rejected-key error, or
@@ -44,6 +44,13 @@ function pick(o: unknown, ...path: string[]): unknown {
   }
   return cur
 }
+
+/**
+ * deepseek.ts's SCHEMA_MARK, repeated: `pnpm ai:mock` runs this file under
+ * Node's type stripping, which cannot import a sibling .ts module. The
+ * DeepSeek JSON-mode test fails if the two ever differ.
+ */
+const SCHEMA_MARK = 'Reply with one JSON object that matches this JSON schema:'
 
 /** DeepSeek takes no schema parameter: the provider writes it at the end of the system prompt. */
 function deepseekSchema(body: Record<string, unknown>): unknown {
@@ -151,6 +158,33 @@ function deepseek(res: ServerResponse, body: Record<string, unknown>, raw: strin
   })
 }
 
+/**
+ * Jev: a noul question about a label (named `label:<name>`) is likely yes when
+ * the name appears in the mail, like mockLabels; `important` is 0.9; a choice
+ * is MOCK_CLASSIFICATION's category when offered, else the first option.
+ * MOCK_BAD answers every question with the wrong type.
+ */
+function systemOne(res: ServerResponse, body: Record<string, unknown>, raw: string): void {
+  if (raw.includes('MOCK_401')) return send(res, 401, { error: { type: 'authentication_error', message: 'Invalid API key' } })
+  const state = String(body.state ?? '').toLowerCase()
+  const questions = (body.questions ?? {}) as Record<string, { type: string; criteria?: Record<string, string> }>
+  const answers: Record<string, unknown> = {}
+  for (const [name, q] of Object.entries(questions)) {
+    if (raw.includes('MOCK_BAD')) answers[name] = { type: 'score', score: 1 }
+    else if (q.type === 'noul')
+      answers[name] = {
+        type: 'noul',
+        noul: name.startsWith('label:') ? (state.includes(name.slice(6).toLowerCase()) ? 0.92 : 0.08) : 0.9
+      }
+    else {
+      const opts = Object.keys(q.criteria ?? {})
+      const choice = opts.includes(MOCK_CLASSIFICATION.category) ? MOCK_CLASSIFICATION.category : opts[0]
+      answers[name] = { type: 'choice', choice, confidence: 0.8, probabilities: Object.fromEntries(opts.map((o) => [o, o === choice ? 0.8 : 0.2 / Math.max(1, opts.length - 1)])) }
+    }
+  }
+  send(res, 200, { model: 'jev-1.14.0', answers, usage: { input_tokens: 120, output_tokens: 6 } })
+}
+
 export function startMockAiServer(port = 0, log = false): Promise<MockAiServer> {
   const calls: MockCall[] = []
   const server = createServer((req, res) => {
@@ -170,6 +204,7 @@ export function startMockAiServer(port = 0, log = false): Promise<MockAiServer> 
       if (req.method === 'POST' && path === '/v1/messages') return anthropic(res, body, raw)
       if (req.method === 'POST' && path === '/v1/responses') return openai(res, body, raw)
       if (req.method === 'POST' && path === '/chat/completions') return deepseek(res, body, raw)
+      if (req.method === 'POST' && path === '/v1/systemone') return systemOne(res, body, raw)
       send(res, 404, { error: { message: `mock has no ${path}` } })
     })
   })
@@ -196,6 +231,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const port = Number(process.argv[2] ?? 4010)
   void startMockAiServer(port, true).then((m) => {
     console.log(`Mock AI server on ${m.url}`)
-    console.log(`  SOVO_ANTHROPIC_BASE_URL=${m.url} SOVO_OPENAI_BASE_URL=${m.url}/v1 SOVO_DEEPSEEK_BASE_URL=${m.url} pnpm dev`)
+    console.log(`  SOVO_ANTHROPIC_BASE_URL=${m.url} SOVO_OPENAI_BASE_URL=${m.url}/v1 SOVO_DEEPSEEK_BASE_URL=${m.url} SOVO_TYPESAFE_BASE_URL=${m.url} pnpm dev`)
   })
 }

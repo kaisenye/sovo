@@ -51,7 +51,7 @@ const GROUPS: { title: string; sections: SectionInfo[] }[] = [
       { id: 'general', label: 'General', blurb: 'Inboxes, appearance and shortcuts.', keywords: 'account inbox theme dark light appearance', icon: SettingsIcon },
       { id: 'shortcuts', label: 'Shortcuts', blurb: 'Change the key for any command.', keywords: 'keys keyboard remap hotkeys', icon: Keyboard },
       { id: 'snippets', label: 'Snippets', blurb: 'Reusable text you insert with ; in compose.', keywords: 'templates text', icon: TextQuote },
-      { id: 'ai', label: 'AI', blurb: 'Your own Anthropic, OpenAI or DeepSeek key, budget and features.', keywords: 'anthropic openai deepseek claude key budget summary reply classify ask', icon: Bot }
+      { id: 'ai', label: 'AI', blurb: 'Your own Anthropic, OpenAI or DeepSeek key, budget, features and sorting engine.', keywords: 'anthropic openai deepseek typesafe jev claude key budget summary reply classify ask', icon: Bot }
     ]
   },
   {

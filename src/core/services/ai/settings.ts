@@ -1,4 +1,4 @@
-import { AI_FEATURES, AI_PROVIDERS, type AiFeature, type AiProviderId } from './types.js'
+import { AI_FEATURES, AI_PROVIDERS, SORT_ENGINES, type AiFeature, type AiKeyOwner, type AiProviderId, type SortEngine } from './types.js'
 
 /**
  * Sonnet 5.5 (Anthropic) and GPT-6.1 Sol (OpenAI): current, same price tier.
@@ -14,6 +14,7 @@ export const MAX_BUDGET_USD = 100
 
 export const AI_KEYS = {
   provider: 'ai_provider',
+  sortEngine: 'ai_sort_engine',
   budget: 'ai_daily_budget_usd',
   model: (p: AiProviderId) => `ai_model_${p}`,
   feature: (f: AiFeature) => `ai_${f}`
@@ -28,6 +29,13 @@ export interface AiSettings {
   budgetUsd: number
   /** What the user switched on. Main still needs a key before a feature runs. */
   toggles: Record<AiFeature, boolean>
+  /** Where sorting (classify, own labels) runs. */
+  sortEngine: SortEngine
+}
+
+/** The key a feature needs: the main provider's, or TypeSafe's for sorting on Jev. */
+export function keyOwnerFor(feature: AiFeature, s: Pick<AiSettings, 'provider' | 'sortEngine'>): AiKeyOwner {
+  return feature === 'classify' && s.sortEngine === 'jev' ? 'typesafe' : s.provider
 }
 
 const isProvider = (v: unknown): v is AiProviderId => AI_PROVIDERS.includes(v as AiProviderId)
@@ -49,7 +57,9 @@ export function readAiSettings(s: Record<string, string>): AiSettings {
     AiFeature,
     boolean
   >
-  return { provider, models, budgetUsd, toggles }
+  const e = s[AI_KEYS.sortEngine]
+  const sortEngine: SortEngine = SORT_ENGINES.includes(e as SortEngine) ? (e as SortEngine) : 'provider'
+  return { provider, models, budgetUsd, toggles, sortEngine }
 }
 
 /** What Settings → AI may change in one call. */
@@ -59,6 +69,7 @@ export interface AiConfigInput {
   model?: { provider: AiProviderId; model: string }
   budgetUsd?: number
   feature?: { feature: AiFeature; on: boolean }
+  sortEngine?: SortEngine
 }
 
 /**
@@ -68,7 +79,7 @@ export interface AiConfigInput {
  */
 export function aiConfigPatch(
   input: AiConfigInput,
-  ctx: { provider: AiProviderId; hasKey: Record<AiProviderId, boolean> }
+  ctx: { provider: AiProviderId; hasKey: Record<AiKeyOwner, boolean>; sortEngine?: SortEngine }
 ): Record<string, string> {
   const out: Record<string, string> = {}
   if (input.provider !== undefined) {
@@ -90,11 +101,20 @@ export function aiConfigPatch(
       throw new Error(`The daily budget must be between $0 and $${MAX_BUDGET_USD}`)
     out[AI_KEYS.budget] = String(Math.round(b * 100) / 100)
   }
+  if (input.sortEngine !== undefined) {
+    if (!SORT_ENGINES.includes(input.sortEngine)) throw new Error('Unknown sorting engine')
+    out[AI_KEYS.sortEngine] = input.sortEngine
+    // Another vendor gets mail only once switched on again (as for a provider change).
+    if (input.sortEngine !== (ctx.sortEngine ?? 'provider')) out[AI_KEYS.feature('classify')] = '0'
+  }
   if (input.feature !== undefined) {
     const { feature, on } = input.feature
     if (!isFeature(feature)) throw new Error('Unknown AI feature')
-    const provider = input.provider ?? ctx.provider
-    if (on && !ctx.hasKey[provider]) throw new Error('Add an API key first')
+    const owner = keyOwnerFor(feature, {
+      provider: input.provider ?? ctx.provider,
+      sortEngine: input.sortEngine ?? ctx.sortEngine ?? 'provider'
+    })
+    if (on && !ctx.hasKey[owner]) throw new Error('Add an API key first')
     out[AI_KEYS.feature(feature)] = on ? '1' : '0'
   }
   return out

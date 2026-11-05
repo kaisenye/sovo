@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { AccountSummary, AiFailure, AiFeature, AiProviderId, AiStatus } from '../../../electron/preload'
+import type { AccountSummary, AiFailure, AiFeature, AiKeyOwner, AiProviderId, AiStatus } from '../../../electron/preload'
 import { budgetEdit, modelEdit } from '../aiSettingsInput'
 import { AiLabelSettings } from './AiLabelSettings'
 
@@ -19,6 +19,60 @@ const FEATURES: { id: AiFeature; label: string }[] = [
 
 const NAME: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek' }
 
+/** The key a feature needs: sorting on Jev uses TypeSafe's, everything else the main provider's. */
+const ownerFor = (s: AiStatus, f: AiFeature): AiKeyOwner =>
+  f === 'classify' && s.sortEngine === 'jev' ? 'typesafe' : s.provider
+
+/** A saved key with Remove, or a write-only field to save one. */
+function KeyField({
+  owner,
+  label,
+  hint,
+  saved,
+  apply
+}: {
+  owner: AiKeyOwner
+  label: string
+  hint: string
+  saved: boolean
+  apply: (r: { ok: true; status: AiStatus } | AiFailure) => void
+}) {
+  const [key, setKey] = useState('')
+  if (saved)
+    return (
+      <div className="settings-split-form">
+        <span className="ai-key-saved">{label} key saved in your keychain</span>
+        <button type="button" onClick={async () => apply(await window.api.aiClearKey(owner))}>
+          Remove key
+        </button>
+      </div>
+    )
+  return (
+    <form
+      className="settings-split-form"
+      onSubmit={async (e) => {
+        e.preventDefault()
+        const r = await window.api.aiSetKey(owner, key)
+        setKey('')
+        apply(r)
+      }}
+    >
+      <input
+        type="password"
+        autoComplete="off"
+        spellCheck={false}
+        placeholder={`${label} API key (${hint})`}
+        aria-label={`${label} API key`}
+        value={key}
+        onChange={(e) => setKey(e.target.value)}
+      />
+      <button type="submit" disabled={!key.trim()}>
+        Save key
+      </button>
+    </form>
+  )
+}
+
 /** The model field's text: empty while the provider's default is in use. */
 const shownModel = (s: AiStatus): string =>
   s.models[s.provider] === s.defaultModels[s.provider] ? '' : s.models[s.provider]
@@ -26,7 +80,6 @@ const shownModel = (s: AiStatus): string =>
 /** Settings → AI. Reads and writes through window.api; the key is write-only. */
 export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSummary[]; activeAccountId: number | null }) {
   const [status, setStatus] = useState<AiStatus | null>(null)
-  const [key, setKey] = useState('')
   const [model, setModel] = useState('')
   const [budget, setBudget] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -70,37 +123,14 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         ))}
       </div>
 
-      {hasKey ? (
-        <div className="settings-split-form">
-          <span className="ai-key-saved">{NAME[p]} key saved in your keychain</span>
-          <button type="button" onClick={async () => apply(await window.api.aiClearKey(p))}>
-            Remove key
-          </button>
-        </div>
-      ) : (
-        <form
-          className="settings-split-form"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            const r = await window.api.aiSetKey(p, key)
-            setKey('')
-            apply(r)
-          }}
-        >
-          <input
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={`${NAME[p]} API key (${PROVIDERS.find((x) => x.id === p)?.keyHint})`}
-            aria-label={`${NAME[p]} API key`}
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-          />
-          <button type="submit" disabled={!key.trim()}>
-            Save key
-          </button>
-        </form>
-      )}
+      <KeyField
+        key={p}
+        owner={p}
+        label={NAME[p]}
+        hint={PROVIDERS.find((x) => x.id === p)?.keyHint ?? ''}
+        saved={hasKey}
+        apply={apply}
+      />
 
       <div className="settings-split-form">
         <input
@@ -134,19 +164,54 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         AI stops until tomorrow; background work stops at 80% of it.
       </p>
 
-      {FEATURES.map((f) => (
-        <label key={f.id} className="picker-check" data-disabled={!hasKey}>
-          <input
-            type="checkbox"
-            disabled={!hasKey}
-            checked={status.toggles[f.id] && hasKey}
-            onChange={async (e) => apply(await window.api.aiSetConfig({ feature: { feature: f.id, on: e.target.checked } }))}
-          />
-          {f.label}
-        </label>
-      ))}
+      {FEATURES.map((f) => {
+        const can = status.hasKey[ownerFor(status, f.id)]
+        return (
+          <label key={f.id} className="picker-check" data-disabled={!can}>
+            <input
+              type="checkbox"
+              disabled={!can}
+              checked={status.toggles[f.id] && can}
+              onChange={async (e) => apply(await window.api.aiSetConfig({ feature: { feature: f.id, on: e.target.checked } }))}
+            />
+            {f.label}
+          </label>
+        )
+      })}
 
-      <AiLabelSettings accounts={accounts} activeAccountId={activeAccountId} classifyOn={hasKey && status.toggles.classify} />
+      <p className="settings-note">Sorting and your labels run on</p>
+      <div className="settings-themes" role="radiogroup" aria-label="Sorting engine">
+        <button
+          type="button"
+          data-on={status.sortEngine === 'provider'}
+          onClick={async () => apply(await window.api.aiSetConfig({ sortEngine: 'provider' }))}
+        >
+          {NAME[p]}, like the rest
+        </button>
+        <button
+          type="button"
+          data-on={status.sortEngine === 'jev'}
+          onClick={async () => apply(await window.api.aiSetConfig({ sortEngine: 'jev' }))}
+        >
+          TypeSafe Jev
+        </button>
+      </div>
+      {status.sortEngine === 'jev' && (
+        <>
+          <KeyField owner="typesafe" label="TypeSafe" hint="from console.typesafe.ai" saved={status.hasKey.typesafe} apply={apply} />
+          <p className="settings-note">
+            Jev only sorts: it answers yes-or-no and pick-one questions and writes nothing, for about $0.04 per million
+            tokens. It is strongest on English mail; check its verdicts on Chinese mail before relying on them.
+            Switching engine turns sorting off until you switch it on again.
+          </p>
+        </>
+      )}
+
+      <AiLabelSettings
+        accounts={accounts}
+        activeAccountId={activeAccountId}
+        classifyOn={status.hasKey[ownerFor(status, 'classify')] && status.toggles.classify}
+      />
 
       <p className="settings-note ai-privacy">
         Privacy: when a feature runs, the sender, subject and text of the messages it works on are sent from this Mac
@@ -154,6 +219,8 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         keychain and never leaves this Mac except to {NAME[p]}. Ask AI sends the few local messages that match your
         question. Instant Reply and Write with AI also send a few earlier messages with the same person, so replies
         fit what was said before.
+        {status.sortEngine === 'jev' &&
+          ' Sorting and your labels send the sender, subject and text of new mail to TypeSafe instead, with your TypeSafe key.'}
       </p>
       {error && <p className="settings-error">{error}</p>}
     </section>

@@ -40,15 +40,16 @@ Ordered `Processor[]` mutate `MsgCtx.draft`. Failures skip except `parse`. FTS5 
 
 ## AI rules
 
-- Keys live in the vault under `ai-anthropic` / `ai-openai` / `ai-deepseek`. Never SQLite, settings, logs, or an IPC reply; `ai:setKey` is write-only and the renderer only learns `hasKey`.
+- Keys live in the vault under `ai-anthropic` / `ai-openai` / `ai-deepseek` / `ai-typesafe`. Never SQLite, settings, logs, or an IPC reply; `ai:setKey` is write-only and the renderer only learns `hasKey`.
 - All provider calls go through `Ai.run(feature, req)` (main passes `getAi()`; features take the `Ai` as a parameter so tests inject `fakeAi`), which checks the switch, the key and the daily budget (background work stops at 80 %) and records usage. Never call an SDK directly from a feature.
 - Mail features live in `src/core/ai/`; prompts wrap mail in `<message>` tags with `asData()` and include `MAIL_IS_DATA`. Output is only shown, inserted into a draft the user edits, or stored as a label.
 - Results are keyed by account + Message-ID (`ai_classifications`, `reply_options`); the summary lives in `messages.summary` of the thread's newest message, so a new reply makes it stale.
 - Background AI is queued by the pipeline (`enqueueForMessage`) and run by `electron/aiWorker.ts`; only fresh (≤ 48 h), non-bulk Inbox mail (custom labels excepted, below); replies also skip notification senders and mail not addressed to the account. A run stopped by `auth` / `rate` pauses the queue 10 min, `budget` until local midnight (`electron/aiPause.ts`); a saved key or setting resumes it.
 - Compose marks its signature and quote with `sovo-signature` / `sovo-quote` divs so Write with AI can find them (drafts saved before the rename carry `supermail-*`, still recognised). Drafts keep the markers; `stripComposeMarkers` removes them from the wire copy.
 - The renderer never imports SDKs or `src/core/services/ai` / `src/core/ai` runtime code (`src/ui/aiBoundary.test.ts`). New `ai:*` handlers go in `electron/ipcAi.ts`.
-- Tests use `fakeAi` or the mock server (`mockServer.ts`, `pnpm ai:mock`); nothing may call a real provider. `SOVO_ANTHROPIC_BASE_URL` / `SOVO_OPENAI_BASE_URL` / `SOVO_DEEPSEEK_BASE_URL` are dev-only (ignored when packaged).
+- Tests use `fakeAi` or the mock server (`mockServer.ts`, `pnpm ai:mock`); nothing may call a real provider. `SOVO_ANTHROPIC_BASE_URL` / `SOVO_OPENAI_BASE_URL` / `SOVO_DEEPSEEK_BASE_URL` / `SOVO_TYPESAFE_BASE_URL` are dev-only (ignored when packaged).
 - DeepSeek (`deepseek.ts`) speaks Chat Completions with thinking off. Its JSON mode takes no schema, so the schema goes into the system prompt (`SCHEMA_MARK`) and features must validate the reply, as `parseJsonReply` callers already do. Prices are peak-hour, cache-miss (the budget errs high).
+- Sorting engine (`ai_sort_engine`): the classifier and own labels run on the main provider, or on TypeSafe's Jev (`jev.ts`, `POST /v1/systemone`, pinned `JEV_MODEL`), which only answers typed questions: Important is a `noul` probability (≥ 0.5), the category a `choice`, each own label a `noul` (≥ `JEV_LABEL_MIN`). Features call `ai.sort` when `status().sortEngine` is `jev`; it shares `run`'s gates and budget (`metered`), under the TypeSafe key (`keyOwnerFor`). Switching engine turns sorting off, like a provider change.
 - Prices for the budget are in `src/core/services/ai/pricing.ts`; update them when a provider changes prices.
 - Replies know your history: Instant Reply and Write with AI (draft) add `pastThreads` (`src/core/ai/history.ts`): up to three earlier non-bulk conversations with the sender, two messages each, ahead of the thread. Two indexed reads on `idx_messages_from`, never an OR scan.
 
