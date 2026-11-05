@@ -230,8 +230,12 @@ app.whenReady().then(() => {
     undefined,
     (f) => {
       for (const w of BrowserWindow.getAllWindows()) w.webContents.send('send:failed', f)
+      // Its local Sent copy is gone (markOutboxFailed): repaint Sent and the thread.
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('mail:sent-stored', {})
     },
     (accountId, messageId) => {
+      // A scheduled send's local Sent copy was stored just now.
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('mail:sent-stored', { accountId })
       const acct = getAccount(accountId)
       if (acct) void refreshSentFolder(accountId, acct.config, messageId)
     }

@@ -114,4 +114,12 @@ describe('hasSentCopy', () => {
     expect(hasSentCopy(1, 2, '<s1@x>')).toBe(false)
     expect(hasSentCopy(1, 1, '<s2@x>')).toBe(false)
   })
+
+  it('does not count the local copy made at send time (no uid yet)', () => {
+    upsertMessage({
+      account_id: 1, folder_id: 1, uid: null, message_id: '<s3@x>', thread_id: '<s3@x>', in_reply_to: null,
+      from_addr: 'me@x.test', from_name: null, to_addrs: '[]', cc_addrs: '[]', subject: 'Hi', date: 1, snippet: null
+    })
+    expect(hasSentCopy(1, 1, '<s3@x>')).toBe(false)
+  })
 })

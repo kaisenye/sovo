@@ -94,7 +94,7 @@ export function encodeAddressList(value: string): string {
 }
 
 /** Commas inside a quoted display name ("Doe, Jane") are not separators. */
-function splitAddresses(value: string): string[] {
+export function splitAddresses(value: string): string[] {
   const out: string[] = []
   let cur = ''
   let quoted = false

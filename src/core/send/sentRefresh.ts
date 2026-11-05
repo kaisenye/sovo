@@ -33,9 +33,10 @@ export async function waitForSentCopy(d: SentWaitDeps): Promise<boolean> {
   return false
 }
 
+/** The server's copy, with its uid: the local copy (localSent.ts, no uid) does not count. */
 export function hasSentCopy(accountId: number, folderId: number, messageId: string): boolean {
   return !!getDb()
-    .prepare('SELECT 1 FROM messages WHERE account_id = ? AND folder_id = ? AND message_id = ? LIMIT 1')
+    .prepare('SELECT 1 FROM messages WHERE account_id = ? AND folder_id = ? AND message_id = ? AND uid IS NOT NULL LIMIT 1')
     .get(accountId, folderId, messageId)
 }
 

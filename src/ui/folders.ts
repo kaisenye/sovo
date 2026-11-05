@@ -48,3 +48,15 @@ export function goDoneTarget(
         : 'No Done folder yet. Create one in Settings → Done folder.'
   }
 }
+
+/**
+ * Exmail mirrors each tag (标签) as a folder under 其他文件夹/ but never puts
+ * the tagged mail in it, and tags are not exposed over IMAP otherwise. Such a
+ * folder has never held a message (last_uid 0), so the sidebar leaves it out.
+ * A real folder there that has had mail still shows.
+ */
+export const EXMAIL_TAG_PREFIX = '其他文件夹/'
+
+export function sidebarFolders(folders: Folder[]): Folder[] {
+  return folders.filter((f) => !(f.role === null && f.path.startsWith(EXMAIL_TAG_PREFIX) && !f.last_uid))
+}

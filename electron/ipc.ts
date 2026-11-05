@@ -77,10 +77,12 @@ import {
 import { countView, listView, repairListDrift, unreadCounts } from '../src/core/store/listRows.js'
 import type { MoveTarget } from '../src/core/store/folderRoles.js'
 import { sanitizeEmailHtml, textToHtml } from '../src/core/render/sanitize.js'
+import { addLocalSentCopy } from '../src/core/send/localSent.js'
 import { htmlToPlainText, stripComposeMarkers } from '../src/core/send/mime.js'
 import {
   cancelOutbox,
   enqueueOutbox,
+  getOutbox,
   listScheduledOutbox,
   remindAtError
 } from '../src/core/send/outbox.js'
@@ -807,6 +809,15 @@ export function registerIpc(): void {
         remind_at: payload.remindAt ?? null,
         cancel_on_reply: payload.cancelOnReply && payload.inReplyTo ? 1 : 0
       })
+      // A send going out now (inside the undo window) shows in Sent and its
+      // thread at once; one scheduled for later shows once it is sent.
+      if (!payload.sendAt || payload.sendAt <= Date.now() + undoWindowMs(getSettings()) + 1000) {
+        try {
+          if (addLocalSentCopy(row, { email: a.config.email, name: a.config.name }) !== null) sentChanged(a.accountId)
+        } catch (err) {
+          console.error('[send] local Sent copy not stored:', err)
+        }
+      }
       return { ok: true as const, outboxId: row.id, sendAt: row.send_at }
     } catch (e) {
       return { ok: false as const, error: (e as Error).message }
@@ -816,7 +827,11 @@ export function registerIpc(): void {
   ipcMain.handle('compose:cancelSend', (_e, outboxId: number) => {
     const s = getBootState()
     if (!s.ok) return { ok: false as const, error: s.error }
-    return { ok: true as const, cancelled: cancelOutbox(outboxId) }
+    const row = getOutbox(outboxId)
+    const cancelled = cancelOutbox(outboxId)
+    // Undone: its local Sent copy just left (cancelOutbox), so lists repaint.
+    if (cancelled && row) sentChanged(row.account_id)
+    return { ok: true as const, cancelled }
   })
 
   ipcMain.handle('compose:listScheduled', () => {
@@ -1069,4 +1084,9 @@ export async function runSyncFor(
       }
     }
   }
+}
+
+/** Sent (or a thread in it) changed locally: lists and the open thread repaint. */
+export function sentChanged(accountId: number): void {
+  for (const w of BrowserWindow.getAllWindows()) w.webContents.send('mail:sent-stored', { accountId })
 }

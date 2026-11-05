@@ -182,4 +182,14 @@ describe('cleanPastedHtml keepColors', () => {
   it('pastes still lose their colors', () => {
     expect(cleanPastedHtml('<span style="color: #dc2626">Hi</span>')).toBe('<span>Hi</span>')
   })
+
+  it('keeps the color Chrome puts on a bold word or a link itself', () => {
+    const out = cleanPastedHtml(
+      '<div><b style="color: rgb(37, 99, 235); font-size: 30px">Kaisen</b> <a href="https://hippsc.com" style="color: #16a34a">site</a></div>',
+      { keepColors: true }
+    )
+    expect(out).toBe(
+      '<div><b style="color: rgb(37, 99, 235)">Kaisen</b> <a href="https://hippsc.com" style="color: rgb(22, 163, 74)">site</a></div>'
+    )
+  })
 })

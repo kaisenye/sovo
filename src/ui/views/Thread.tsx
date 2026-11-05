@@ -26,6 +26,8 @@ interface Props {
   focusMessageId: number
   /** The account that owns the thread (thread ids collide across accounts); unset = the active one. */
   accountId?: number
+  /** Bumped when Sent changes locally (a send, an undo): the thread re-reads, keeping what is open. */
+  version?: number
   /** "15 / 201", or null when the thread is not in the list on screen. */
   position: string | null
   onPrevConversation: () => void
@@ -66,6 +68,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
     threadId,
     focusMessageId,
     accountId,
+    version = 0,
     position,
     onPrevConversation,
     onNextConversation,
@@ -136,13 +139,33 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
     return () => io.disconnect()
   }, [messages])
 
+  // Which thread the messages on screen belong to: a re-read of the same one
+  // (version bumped) keeps the reader's place instead of starting over.
+  const shownFor = useRef<string | null>(null)
   useEffect(() => {
     let cancelled = false
+    const key = `${accountId ?? ''}:${threadId}:${focusMessageId}`
     window.api.getThread(threadId, accountId).then((desc) => {
       if (cancelled) return
       // Read top to bottom like a conversation (Scape): oldest first. Main
       // returns date DESC, so flip it here; every index below is in this order.
       const m = [...desc].reverse()
+      if (shownFor.current === key) {
+        // Same thread re-read: keep open what was open, open anything new
+        // (your reply just sent), and land on the newest only if it changed.
+        setMessages((prev) => {
+          const before = new Set((prev ?? []).map((x) => x.id))
+          const added = m.filter((x) => !before.has(x.id)).map((x) => x.id)
+          setExpanded((open) => new Set([...m.map((x) => x.id).filter((id) => open.has(id)), ...added]))
+          if (added.length) {
+            landing.current = true
+            setFocused(m.length - 1)
+          }
+          return m
+        })
+        return
+      }
+      shownFor.current = key
       setMessages(m)
       loaded.current.clear()
       // Open on the newest message, yours or theirs (the row is the newest
@@ -158,7 +181,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
     return () => {
       cancelled = true
     }
-  }, [threadId, focusMessageId, accountId])
+  }, [threadId, focusMessageId, accountId, version])
 
   useEffect(() => {
     const el = scrollRef.current?.querySelector(`[data-index="${focused}"]`)

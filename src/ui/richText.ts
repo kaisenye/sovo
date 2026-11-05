@@ -64,8 +64,10 @@ const SAFE_COLOR = /^(#[0-9a-f]{3,8}|rgba?\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,
  * Pastes never keep them: a copied marker would plant a false stop mid-body.
  * Main strips them before the mail goes out (`stripComposeMarkers`).
  *
- * `keepColors` keeps a <span>'s text color (and only that) when it is a plain
- * hex or rgb() value. The editors pass it for what the user colored; pastes do
+ * `keepColors` keeps an element's text color (and only that) when it is a
+ * plain hex or rgb() value. Chrome puts the color on a <span> for plain text,
+ * but on the <b> or <a> itself when that is what was selected, so every kept
+ * tag may carry one. The editors pass it for what the user colored; pastes do
  * not, so text copied from a dark page doesn't arrive in its old color.
  */
 export function cleanPastedHtml(
@@ -84,8 +86,7 @@ export function cleanPastedHtml(
         child.replaceWith(...child.childNodes)
         continue
       }
-      const color =
-        opts.keepColors === true && child.tagName === 'SPAN' ? (child as HTMLElement).style.color : ''
+      const color = opts.keepColors === true ? (child as HTMLElement).style.color : ''
       for (const attr of [...child.attributes]) {
         const keep =
           (child.tagName === 'A' && attr.name === 'href' && SAFE_HREF.test(attr.value)) ||

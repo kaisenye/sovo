@@ -48,7 +48,7 @@ import { SyncProgress, TabBar } from './views/TabBar'
 import { SearchPage } from './views/SearchPage'
 import { ContactPane } from './views/ContactPane'
 import { folderLabel, isFlagged, isUnread } from './format'
-import { goDoneTarget, reloadFolders } from './folders'
+import { goDoneTarget, reloadFolders, sidebarFolders } from './folders'
 import { doneAction, pushSyncTarget, undoRepaint, viewKey, type ViewKey } from './viewScope'
 import { appMode, baseMode } from './appMode'
 import { openThreadTarget } from './threadTarget'
@@ -253,6 +253,8 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   const [syncCounts, setSyncCounts] = useState<SyncCounts>({})
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null)
   const [addingAccount, setAddingAccount] = useState(false)
+  /** Bumped whenever Sent changes locally, so an open thread re-reads (Thread `version`). */
+  const [sentVersion, setSentVersion] = useState(0)
   const [reauthEmail, setReauthEmail] = useState<string | null>(null)
   useEffect(() => window.api.onReauthNeeded(setReauthEmail), [])
 
@@ -668,6 +670,8 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       const id = useStore.getState().activeFolderId
       if (id) void loadRows(id, true)
       else void refreshUnread()
+      // An open thread shows the send (or its undo) too.
+      setSentVersion((v) => v + 1)
     })
     // The repair rewrites thread ids under the current list, so reload rather
     // than leave rows pointing at conversations that just merged.
@@ -1901,7 +1905,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
         onSwitchAccount={switchAccount}
         onAddAccount={() => setAddingAccount(true)}
         onReconnectAccount={(a) => void signInAgain(a.email)}
-        folders={folders}
+        folders={sidebarFolders(folders)}
         activeFolderId={activeFolderId}
         onSelect={(id) => {
           setTasksOpen(false)
@@ -1984,6 +1988,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
               threadId={openThread.threadId}
               focusMessageId={openThread.messageId}
               accountId={openThread.accountId}
+              version={sentVersion}
               position={positionLabel(openThreadTarget(rows, openThread).index, totalRows)}
               onPrevConversation={() => stepConversation(-1)}
               onNextConversation={() => stepConversation(1)}

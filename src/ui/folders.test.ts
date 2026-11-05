@@ -3,7 +3,7 @@ import { readFileSync } from 'fs'
 import { join } from 'path'
 import type { Folder } from '../core/store/types'
 import { useStore } from './store'
-import { createArchiveFolder, goDoneTarget, reloadFolders } from './folders'
+import { createArchiveFolder, goDoneTarget, reloadFolders, sidebarFolders } from './folders'
 
 const folder = (id: number, path: string, role: Folder['role']): Folder => ({
   id,
@@ -96,5 +96,14 @@ describe('goDoneTarget (g e)', () => {
 
   it('points at Settings when the account has no Done folder yet', () => {
     expect(goDoneTarget([INBOX], 'imap')).toEqual({ message: expect.stringContaining('Settings') })
+  })
+})
+
+describe('sidebarFolders', () => {
+  it('leaves out Exmail’s empty tag mirrors, and keeps every other folder', () => {
+    const tag = folder(34, '其他文件夹/客户', null)
+    const used = { ...folder(35, '其他文件夹/项目', null), last_uid: 12 }
+    const mine = folder(40, 'Projects', null)
+    expect(sidebarFolders([INBOX, ARCHIVE, tag, used, mine]).map((f) => f.id)).toEqual([1, 9, 35, 40])
   })
 })

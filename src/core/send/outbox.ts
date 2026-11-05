@@ -1,4 +1,5 @@
 import { getDb } from '../store/db.js'
+import { removeLocalSentCopy } from './localSent.js'
 
 export type OutboxStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'cancelled'
 
@@ -105,6 +106,7 @@ export function getOutbox(id: number): OutboxRow | undefined {
   return getDb().prepare('SELECT * FROM outbox WHERE id = ?').get(id) as OutboxRow | undefined
 }
 
+/** Undo or cancel before it went out: its local Sent copy (localSent.ts) leaves too. */
 export function cancelOutbox(id: number): boolean {
   const info = getDb()
     .prepare(
@@ -112,7 +114,10 @@ export function cancelOutbox(id: number): boolean {
        WHERE id = ? AND status = 'pending'`
     )
     .run(id)
-  return info.changes > 0
+  if (info.changes === 0) return false
+  const row = getOutbox(id)
+  if (row) removeLocalSentCopy(row)
+  return true
 }
 
 export function listPendingOutbox(accountId: number): OutboxRow[] {
@@ -168,8 +173,11 @@ export function markOutboxSent(id: number): void {
   getDb().prepare(`UPDATE outbox SET status = 'sent', error = NULL WHERE id = ?`).run(id)
 }
 
+/** A failed send never reached anyone, so its local Sent copy goes (the draft stays). */
 export function markOutboxFailed(id: number, error: string): void {
   getDb()
     .prepare(`UPDATE outbox SET status = 'failed', error = ? WHERE id = ?`)
     .run(error, id)
+  const row = getOutbox(id)
+  if (row) removeLocalSentCopy(row)
 }

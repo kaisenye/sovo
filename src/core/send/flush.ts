@@ -19,6 +19,7 @@ import {
   type MimeInlineImage
 } from './mime.js'
 import { sendSmtp, type OutboundAttachment } from './smtp.js'
+import { addLocalSentCopy, outboxMessageId } from './localSent.js'
 
 /** Plain part is never empty: fall back to a downgrade of the HTML. */
 function plainBody(row: OutboxRow): string {
@@ -133,7 +134,8 @@ export async function flushOutboxRow(
     return { ok: false, error: 'not pending' }
   }
   try {
-    const messageId = `<sovo-${row.id}-${Date.now()}@local>`
+    // Fixed at queue time, so the local Sent copy and the server's share it.
+    const messageId = outboxMessageId(row)
     const attachments = readAttachments(row)
     const { html, inline } = extractInlineImages(row.body_html)
     const result = await sendSmtp(config, {
@@ -152,6 +154,12 @@ export async function flushOutboxRow(
     const sentId = result.messageId || messageId
     // Mark sent as soon as SMTP succeeds: the mail is irreversibly out.
     markOutboxSent(row.id)
+    // A send queued for later gets its local Sent copy now (an immediate one got it when queued).
+    try {
+      addLocalSentCopy(row, { email: config.email, name: config.name })
+    } catch (err) {
+      console.error('[outbox] local Sent copy not stored:', err)
+    }
 
     // "Remind me if no reply" was chosen in compose. Keyed by the Message-ID we
     // just sent, which is also what the Sent copy will carry once it syncs.
