@@ -165,6 +165,16 @@ export function reopenHistory(folderId: number): void {
 
 // ---- messages ----
 
+/**
+ * The id Sovo gave a send, from the one Exmail filed it under: Exmail puts a
+ * hex prefix in front (`<D975543DE3B09C09+sovo-4-1793980380272@local>`).
+ * Null for any other id.
+ */
+export function ownSentId(messageId: string): string | null {
+  const m = /^<[0-9A-Fa-f]+\+(sovo-\d+-\d+@local)>$/.exec(messageId)
+  return m ? `<${m[1]}>` : null
+}
+
 export function upsertMessage(input: UpsertMessageInput): number {
   const { references, ...m } = input
   const row = {
@@ -184,13 +194,16 @@ export function upsertMessage(input: UpsertMessageInput): number {
   // server picks the new uid, and Exmail has no UIDPLUS to say what it was.
   // When sync then finds the message there, give that row the uid so the
   // upsert below updates it instead of inserting a duplicate.
+  // Exmail rewrites the Message-ID of mail it sends (`<HEX+sovo-…@local>`),
+  // so a local Sent copy (localSent.ts) is matched under its own id too, and
+  // takes the server's id, which replies will quote.
   if (row.folder_id !== null && row.uid !== null && row.message_id) {
     getDb()
       .prepare(
-        `UPDATE messages SET uid = @uid
+        `UPDATE messages SET uid = @uid, message_id = @message_id
          WHERE id = (SELECT id FROM messages
                      WHERE account_id = @account_id AND folder_id = @folder_id
-                       AND message_id = @message_id AND uid IS NULL
+                       AND message_id IN (@message_id, @own_id) AND uid IS NULL
                      LIMIT 1)
            AND NOT EXISTS (SELECT 1 FROM messages
                            WHERE account_id = @account_id AND folder_id = @folder_id
@@ -200,7 +213,8 @@ export function upsertMessage(input: UpsertMessageInput): number {
         uid: row.uid,
         account_id: row.account_id,
         folder_id: row.folder_id,
-        message_id: row.message_id
+        message_id: row.message_id,
+        own_id: ownSentId(row.message_id) ?? row.message_id
       })
   }
   const info = getDb()

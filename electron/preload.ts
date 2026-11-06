@@ -324,6 +324,12 @@ const api = {
   labelChoices: (ids: number[]): Promise<string[]> => ipcRenderer.invoke('labels:choices', ids),
   labelsFor: (ids: number[]): Promise<Record<number, string[]>> =>
     ipcRenderer.invoke('labels:forMessages', ids),
+  /** Important, the default categories and the inbox's own labels (any inbox), checked where set. */
+  localLabelChoices: (ids: number[]): Promise<{ id: string; label: string; checked: boolean }[]> =>
+    ipcRenderer.invoke('labels:localChoices', ids),
+  /** Sets one of those by hand; the AI never overwrites it. */
+  setLocalLabel: (ids: number[], id: string, add: boolean): Promise<{ ok: true; written: number } | { ok: false; error: string }> =>
+    ipcRenderer.invoke('labels:setLocal', ids, id, add),
   setLabel: (
     ids: number[],
     label: string,
@@ -534,6 +540,8 @@ const api = {
   },
   /** The network came back: main reconnects IDLE and the pool, then syncs. */
   networkOnline: (): void => ipcRenderer.send('net:online'),
+  /** Closes this window (⌘W on the last tab). */
+  closeWindow: (): void => ipcRenderer.send('window:close'),
   onNewMail: (cb: (email: string | undefined) => void): (() => void) => {
     const h = (_e: unknown, email?: string): void => cb(email)
     ipcRenderer.on('mail:new', h)

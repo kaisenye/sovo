@@ -29,6 +29,7 @@ import { undoWindowMs } from '../src/core/triage/undoWindow.js'
 import { describePlan, oneClickPost, planUnsubscribe, runUnsubscribe } from '../src/core/triage/unsubscribe.js'
 import { zeroCandidates, type ZeroOptions } from '../src/core/triage/zero.js'
 import { cleanGroups } from '../src/core/triage/clean.js'
+import { localLabelChoices, setLocalLabel } from '../src/core/triage/manualLabels.js'
 import { enqueueOutbox } from '../src/core/send/outbox.js'
 import { deleteSplit, listSplits, saveSplit, splitCounts } from '../src/core/store/splits.js'
 import { getPool } from '../src/core/sync/pool.js'
@@ -169,6 +170,21 @@ export function registerTriageIpc(): void {
   )
 
   ipcMain.handle('labels:forMessages', (_e, ids: number[]) => labelsForMessages(ids))
+
+  // Local labels (L on any inbox): stored as the user's own verdict, never sent to the server.
+  ipcMain.handle('labels:localChoices', (_e, ids: number[]) => {
+    if (!getBootState().ok) return []
+    return localLabelChoices(ids)
+  })
+  ipcMain.handle('labels:setLocal', (_e, ids: number[], id: string, add: boolean) => {
+    const s = getBootState()
+    if (!s.ok) return { ok: false as const, error: s.error }
+    try {
+      return { ok: true as const, written: setLocalLabel(ids, id, add) }
+    } catch (e) {
+      return { ok: false as const, error: (e as Error).message }
+    }
+  })
 
   // Optimistic like flags: SQLite now, STORE ±X-GM-LABELS in the background.
   // Every owning account is checked first so a mixed selection changes nothing.

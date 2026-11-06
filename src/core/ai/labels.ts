@@ -1,6 +1,7 @@
 import { parseJsonReply } from '../services/ai/json.js'
 import type { Ai } from '../services/ai/service.js'
 import type { AiRequest, SortAnswer, SortRequest } from '../services/ai/types.js'
+import { threadIsManual } from '../store/ai.js'
 import { LABEL_BACKFILL_MS, listAiLabels, setMessageLabels, type AiLabel } from '../store/aiLabels.js'
 import { getMessage } from '../store/repo.js'
 import type { Candidate } from './eligibility.js'
@@ -106,6 +107,8 @@ export function parseLabels(text: string, labels: Pick<AiLabel, 'id' | 'name'>[]
 export async function labelMessage(ai: Ai, messageRowId: number): Promise<boolean> {
   const m = getMessage(messageRowId)
   if (!m?.message_id) return false
+  // The user labelled this thread: their pick stands, so nothing to ask.
+  if (threadIsManual(m.account_id, m.id)) return false
   const labels = listAiLabels(m.account_id)
   if (!labels.length) return false
   const mail = { from: who(m), subject: m.subject, body: messageText(m, 2000) }
@@ -119,7 +122,9 @@ export async function labelMessage(ai: Ai, messageRowId: number): Promise<boolea
           .then((r) => (now: typeof labels) => parseLabels(r.text, now))
   // Switched off while the provider was answering: its verdicts were cleared.
   if (!ai.status().features.classify) return false
-  // Read again: a label deleted meanwhile must not come back.
+  // Read again: a label deleted meanwhile must not come back, and a pick the
+  // user made meanwhile wins.
+  if (threadIsManual(m.account_id, m.id)) return false
   setMessageLabels(m.account_id, m.message_id, pick(listAiLabels(m.account_id)))
   return true
 }

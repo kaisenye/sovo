@@ -256,6 +256,8 @@ app.whenReady().then(() => {
   // case where it takes longer.
   powerMonitor.on('resume', () => setTimeout(() => reconnectAndSync('wake'), 2_500))
   ipcMain.on('net:online', () => reconnectAndSync('network back'))
+  // ⌘W on the last tab: the renderer owns ⌘W (menu.ts), so it asks main.
+  ipcMain.on('window:close', (e) => BrowserWindow.fromWebContents(e.sender)?.close())
   createWindow()
 
   app.on('activate', () => {

@@ -226,7 +226,7 @@ export const COMMANDS: Command[] = [
   { id: 'msg.spam', title: 'Mark as spam', group: 'Message', palette: true, keys: [{ kind: 'key', key: '!', modes: LIST_THREAD }] },
   { id: 'msg.remind', title: 'Remind me', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'h', modes: LIST_THREAD }] },
   { id: 'msg.move', title: 'Move to folder…', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'v', modes: LIST_THREAD }] },
-  { id: 'msg.label', title: 'Label… (Gmail)', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'l', modes: LIST_THREAD }] },
+  { id: 'msg.label', title: 'Label…', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'l', modes: LIST_THREAD }] },
   { id: 'msg.mute', title: 'Mute conversation', group: 'Message', palette: true, keys: [{ kind: 'key', key: 'M', modes: LIST_THREAD }] },
   { id: 'msg.vip', title: 'Toggle VIP sender', group: 'Message', palette: true, keys: [] },
   { id: 'msg.unsubscribe', title: 'Unsubscribe', group: 'Message', palette: true, keys: [{ kind: 'mod', key: 'u', modes: LIST_THREAD }] },

@@ -88,25 +88,12 @@ export function MessageBody({ messageId, onLoaded, activeLink }: Props) {
   if (!body) {
     // Skeleton rather than a word: the body arrives in well under a second on
     // a warm cache, and swapping "Loading…" for text is a visible jolt.
-    // Widths vary so it reads as prose, not a progress bar.
+    // A few short lines of varied width read as prose, not a progress bar.
     return (
       <div className="body-skeleton" aria-busy="true" aria-label="Loading message">
-        {(() => {
-          // Stagger from the line index, not a CSS nth- selector: the paragraph
-          // gap is a sibling div, so nth-child and nth-of-type both miscount it.
-          let line = 0
-          return [96, 88, 92, 70, 0, 84, 90, 62].map((w, i) =>
-            w === 0 ? (
-              <div key={i} className="skeleton-gap" />
-            ) : (
-              <div
-                key={i}
-                className="skeleton-line"
-                style={{ width: `${w}%`, animationDelay: `${line++ * 0.08}s` }}
-              />
-            )
-          )
-        })()}
+        {[92, 80, 86, 48].map((w) => (
+          <div key={w} className="skeleton-line" style={{ width: `${w}%` }} />
+        ))}
       </div>
     )
   }

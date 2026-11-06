@@ -50,11 +50,11 @@ ranked AS (
     LEFT JOIN folders f ON f.id = dm.folder_id
 ),
 cls AS (
-  -- The thread's newest classified message decides: a later verdict (a new
-  -- inbound mail) replaces an older one.
+  -- The user's own pick (v24 manual) decides; else the thread's newest
+  -- classified message: a later verdict (a new inbound mail) replaces an older one.
   SELECT ranked.account_id, ranked.thread_key, c.important, c.category,
          ROW_NUMBER() OVER (PARTITION BY ranked.account_id, ranked.thread_key
-                            ORDER BY COALESCE(ranked.date, 0) DESC, ranked.id DESC) AS c_rank
+                            ORDER BY c.manual DESC, COALESCE(ranked.date, 0) DESC, ranked.id DESC) AS c_rank
     FROM ranked JOIN ai_classifications c
       ON c.account_id = ranked.account_id AND c.message_id = ranked.message_id
 ),

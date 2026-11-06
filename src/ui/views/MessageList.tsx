@@ -39,6 +39,8 @@ interface Props {
   groupByDate?: boolean
   /** Gmail label colours, so a label chip wears the colour set in Gmail. */
   labelColors?: LabelColors
+  /** Height of the glass bar floating over the top: rows start below it and scroll under it. */
+  topInset?: number
 }
 
 export function MessageList({
@@ -58,6 +60,7 @@ export function MessageList({
   emptyNode,
   showRecipient = false,
   groupByDate = false,
+  topInset = 0,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   /** Set by a shift-click so the change that follows it is ignored. */
@@ -105,6 +108,9 @@ export function MessageList({
       items[i]?.kind === 'header' ? (i === 0 ? FIRST_GROUP_HEIGHT : GROUP_HEIGHT) : ROW_HEIGHT,
     // Room after the last row for the loader.
     paddingEnd: 56,
+    paddingStart: topInset,
+    // Keyboard moves keep the cursor row clear of the bar.
+    scrollPaddingStart: topInset,
     overscan: 12
   })
 
@@ -129,7 +135,7 @@ export function MessageList({
   if (!rows.length) {
     return (
       <>
-        <div className="list-scroll">
+        <div className="list-scroll" style={{ paddingTop: topInset }}>
           {emptyNode ?? (
             <div className="empty">
               <span className="empty-title">{emptyTitle}</span>

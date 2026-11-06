@@ -33,11 +33,19 @@ export async function waitForSentCopy(d: SentWaitDeps): Promise<boolean> {
   return false
 }
 
-/** The server's copy, with its uid: the local copy (localSent.ts, no uid) does not count. */
+/**
+ * The server's copy, with its uid: the local copy (localSent.ts, no uid) does
+ * not count. Exmail files it under `<HEX+id>` (ownSentId), so that counts too.
+ */
 export function hasSentCopy(accountId: number, folderId: number, messageId: string): boolean {
+  const tail = '+' + messageId.slice(1)
   return !!getDb()
-    .prepare('SELECT 1 FROM messages WHERE account_id = ? AND folder_id = ? AND message_id = ? AND uid IS NOT NULL LIMIT 1')
-    .get(accountId, folderId, messageId)
+    .prepare(
+      `SELECT 1 FROM messages WHERE account_id = @a AND folder_id = @f AND uid IS NOT NULL
+         AND (message_id = @id OR (length(message_id) > length(@tail) AND substr(message_id, -length(@tail)) = @tail))
+       LIMIT 1`
+    )
+    .get({ a: accountId, f: folderId, id: messageId, tail })
 }
 
 /**

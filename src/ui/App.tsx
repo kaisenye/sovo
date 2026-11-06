@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useHeight } from './hooks/useHeight'
 import type { AccountSummary, Attachment, ScheduledSend, Split } from '../../electron/preload'
 import type { MessageListRow } from '../core/store/types'
 import {
@@ -733,6 +734,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
   const workspaceRef = useRef<Workspace | null>(null)
+  const [listHeadRef, listInset] = useHeight<HTMLDivElement>()
   const threadRef = useRef<ThreadHandle>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   /** The account whose tabs these are, fixed at boot: a switch remounts App (Root.tsx). */
@@ -1463,18 +1465,19 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     })
   }, [actionIds, setActionError, closeThread, clearChecked, loadRows, pushUndo, repaintAfterUndo])
 
-  /** Gmail only: the user labels the targets' accounts share, checked where the targets already carry them. */
+  /**
+   * Any inbox: Important, the default categories and the inbox's own labels
+   * (kept locally), then on Gmail the labels the targets' accounts share.
+   * Checked where the targets already carry them.
+   */
   const openLabelPicker = useCallback(async () => {
     const ids = actionIds()
     if (!ids.length) return
-    const choices = await window.api.labelChoices(ids)
-    if (!choices.length) return setActionError('No Gmail labels these messages can share')
-    const current = new Set(Object.values(await window.api.labelsFor(ids)).flat())
-    setOverlay({
-      kind: 'label',
-      ids,
-      items: choices.map((c) => ({ id: c, label: c, checked: current.has(c) }))
-    })
+    const [local, gmail] = await Promise.all([window.api.localLabelChoices(ids), window.api.labelChoices(ids)])
+    const current = gmail.length ? new Set(Object.values(await window.api.labelsFor(ids)).flat()) : new Set<string>()
+    const items = [...local, ...gmail.map((c) => ({ id: c, label: c, checked: current.has(c) }))]
+    if (!items.length) return setActionError('These messages cannot be labelled')
+    setOverlay({ kind: 'label', ids, items })
   }, [actionIds, setActionError])
 
   /** From a thread the reminder targets the open thread, then advances like Done. */
@@ -1549,7 +1552,14 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           const v = viewNow()
           if (ws && v) showWorkspace(openTab(ws, { ...v, thread: null }))
         },
-        'tab.close': () => stepWorkspace((w) => closeTab(w)),
+        // The last tab closes the window, as in a browser.
+        'tab.close': () => {
+          const ws = workspaceRef.current
+          if (!ws) return
+          const next = closeTab(ws)
+          if (next) showWorkspace(next)
+          else window.api.closeWindow()
+        },
         'tab.next': () => stepWorkspace((w) => cycleTab(w, 1)),
         'tab.prev': () => stepWorkspace((w) => cycleTab(w, -1)),
         ...(Object.fromEntries(
@@ -2030,7 +2040,9 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
             onOpenTasks={() => setTasksOpen(true)}
           />
         ) : (
-          <>
+          <div className="list-area">
+            {/* Floats over the list: rows scroll under its glass. */}
+            <div className="list-head" ref={listHeadRef}>
             {active && active.role !== 'drafts' && (
               <SplitBar
                 splits={active.role === 'inbox' ? splits : null}
@@ -2057,8 +2069,9 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
                 onTrash={() => void moveSelected({ role: 'trash' }, 'Trashed')}
               />
             )}
+            </div>
             {rows.length === 0 && !hasSyncedOnce ? (
-              <div className="list-scroll">
+              <div className="list-scroll" style={{ paddingTop: listInset }}>
                 <div className="empty">
                   <span className="empty-title">Syncing your mail…</span>
                   <span className="empty-sub">Fetching from {email}</span>
@@ -2104,9 +2117,10 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
                 loadingMore={loadingMore}
                 hasMore={!exhausted}
                 onLoadMore={() => void loadMore()}
+                topInset={listInset}
               />
             )}
-          </>
+          </div>
         )}
       </main>
       </>
@@ -2158,13 +2172,19 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           onPick={async (label) => {
             const item = overlay.items.find((i) => i.id === label)
             const add = !item?.checked
-            const r = await window.api.setLabel(overlay.ids, label, add)
+            const r = label.startsWith('sovo:')
+              ? await window.api.setLocalLabel(overlay.ids, label, add)
+              : await window.api.setLabel(overlay.ids, label, add)
             if (!r.ok) return setActionError(r.error)
             // Row chips are read with the page, so repaint it: the label shows (or goes) at once.
             void refreshRows()
+            // A thread has one category: checking one unchecks the others.
+            const isCategory = (id: string) => id.startsWith('sovo:cat:')
             setOverlay({
               ...overlay,
-              items: overlay.items.map((i) => (i.id === label ? { ...i, checked: add } : i))
+              items: overlay.items.map((i) =>
+                i.id === label ? { ...i, checked: add } : add && isCategory(label) && isCategory(i.id) ? { ...i, checked: false } : i
+              )
             })
           }}
         />

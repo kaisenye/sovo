@@ -24,7 +24,8 @@ export function saveClassification(
        VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (account_id, message_id) DO UPDATE SET
          important = excluded.important, category = excluded.category, reason = excluded.reason,
-         model = excluded.model, created_at = excluded.created_at`
+         model = excluded.model, created_at = excluded.created_at
+       WHERE ai_classifications.manual = 0`
     ).run(accountId, messageId, c.important ? 1 : 0, c.category, c.reason, c.model, now)
     markDirtyByMessageId(accountId, messageId)
   })()
@@ -41,7 +42,7 @@ export function getClassification(accountId: number, messageId: string): Classif
   return r ? { important: r.important === 1, category: r.category, reason: r.reason, model: r.model } : null
 }
 
-/** Drops every verdict (the classifier was turned off): splits fall back to the heuristic at once. */
+/** Drops every AI verdict (the classifier was turned off): splits fall back to the heuristic at once. The user's own picks stay. */
 export function clearClassifications(): number {
   const db = getDb()
   return db.transaction(() => {
@@ -50,9 +51,9 @@ export function clearClassifications(): number {
        SELECT m.account_id, COALESCE(m.thread_id, '#' || m.id)
          FROM ai_classifications c
          JOIN messages m ON m.account_id = c.account_id AND m.message_id = c.message_id
-        WHERE m.folder_id IS NOT NULL`
+        WHERE m.folder_id IS NOT NULL AND c.manual = 0`
     ).run()
-    return db.prepare('DELETE FROM ai_classifications').run().changes
+    return db.prepare('DELETE FROM ai_classifications WHERE manual = 0').run().changes
   })()
 }
 
@@ -188,4 +189,21 @@ export function spentMicros(day: string): number {
       s: number
     }
   ).s
+}
+
+/**
+ * True when the user labelled this message's thread themself (v24 manual):
+ * the classifier and the labels job leave the thread alone then.
+ */
+export function threadIsManual(accountId: number, messageRowId: number): boolean {
+  const db = getDb()
+  const t = db.prepare('SELECT thread_id, message_id FROM messages WHERE id = ? AND account_id = ?').get(messageRowId, accountId) as
+    | { thread_id: string | null; message_id: string | null }
+    | undefined
+  if (!t) return false
+  const manual = 'JOIN ai_classifications c ON c.account_id = m.account_id AND c.message_id = m.message_id AND c.manual = 1'
+  // thread_id equality, so idx_messages_account_thread finds the thread.
+  return t.thread_id
+    ? !!db.prepare(`SELECT 1 FROM messages m ${manual} WHERE m.account_id = ? AND m.thread_id = ? LIMIT 1`).get(accountId, t.thread_id)
+    : !!db.prepare(`SELECT 1 FROM messages m ${manual} WHERE m.id = ?`).get(messageRowId)
 }

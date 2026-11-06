@@ -3,7 +3,8 @@ import { mkdtempSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { closeDb, getDb, initDb } from '../store/db.js'
-import { getThread, upsertMessage } from '../store/repo.js'
+import { getThread, ownSentId, upsertMessage } from '../store/repo.js'
+import { hasSentCopy } from './sentRefresh.js'
 import { listView } from '../store/listRows.js'
 import { addLocalSentCopy, addressJson, outboxMessageId } from './localSent.js'
 import { cancelOutbox, enqueueOutbox, markOutboxFailed } from './outbox.js'
@@ -72,6 +73,23 @@ describe('the local Sent copy', () => {
     })
     expect(synced).toBe(local)
     expect(sentRows()).toEqual([expect.objectContaining({ id: local, uid: 4209 })])
+  })
+
+  it('is adopted by the server copy Exmail files under a rewritten Message-ID', () => {
+    const row = queue()
+    const local = addLocalSentCopy(row, ME)
+    const exmailId = '<D975543DE3B09C09+' + outboxMessageId(row).slice(1)
+    expect(hasSentCopy(1, 2, outboxMessageId(row))).toBe(false)
+    const synced = upsertMessage({
+      account_id: 1, folder_id: 2, uid: 4209, message_id: exmailId, thread_id: exmailId,
+      in_reply_to: null, from_addr: 'me@x.test', from_name: 'Kai', to_addrs: '[]', cc_addrs: '[]',
+      subject: 'Re: Friday', date: Date.now(), snippet: null, flags: '["\\\\Seen"]'
+    })
+    expect(synced).toBe(local)
+    expect(sentRows()).toEqual([expect.objectContaining({ id: local, uid: 4209, message_id: exmailId })])
+    expect(hasSentCopy(1, 2, outboxMessageId(row))).toBe(true)
+    // Another account's or another send's id is not taken for ours.
+    expect(ownSentId('<abc+other@x.test>')).toBeNull()
   })
 
   it('leaves when the send is undone or fails, and only its own copy', () => {

@@ -3,7 +3,7 @@ import { Menu, type MenuItemConstructorOptions } from 'electron'
 /**
  * Electron's default menu binds ⌘W to Close Window, which would swallow the
  * close-tab shortcut before the renderer sees it. Same menus otherwise; the
- * window closes with ⇧⌘W. The Window menu is spelled out because its role
+ * window closes with ⇧⌘W, or ⌘W on the last tab (the renderer asks main). The Window menu is spelled out because its role
  * adds Close (⌘W) off macOS.
  */
 export function installAppMenu(): void {

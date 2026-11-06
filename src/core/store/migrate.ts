@@ -512,7 +512,11 @@ CREATE TABLE gmail_label_colors (
   fg TEXT NOT NULL,
   PRIMARY KEY (account_id, name)
 ) WITHOUT ROWID;
-`)
+`),
+  // v24: labels the user picked (L on any inbox). A manual verdict is the
+  // user's: the classifier and the labels job never overwrite it, turning the
+  // classifier off keeps it, and the thread's own labels follow it too.
+  (db) => db.exec(`ALTER TABLE ai_classifications ADD COLUMN manual INTEGER NOT NULL DEFAULT 0;`)
 ]
 
 /** `target` stops early — tests use it to stage data at an older version. */

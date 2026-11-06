@@ -1,7 +1,7 @@
 import { parseJsonReply } from '../services/ai/json.js'
 import type { Ai } from '../services/ai/service.js'
 import { AiError, type AiRequest, type SortAnswer, type SortRequest } from '../services/ai/types.js'
-import { saveClassification } from '../store/ai.js'
+import { saveClassification, threadIsManual } from '../store/ai.js'
 import { getDb } from '../store/db.js'
 import { getMessage } from '../store/repo.js'
 import { asData, MAIL_IS_DATA, messageText, who } from './mailText.js'
@@ -131,6 +131,8 @@ export function parseClassification(text: string): { important: boolean; categor
 export async function classifyMessage(ai: Ai, messageRowId: number): Promise<boolean> {
   const m = getMessage(messageRowId)
   if (!m?.message_id) return false
+  // The user labelled this thread: their pick stands, so nothing to ask.
+  if (threadIsManual(m.account_id, m.id)) return false
   const db = getDb()
   const from = (m.from_addr ?? '').toLowerCase()
   const repliedBefore = !!db

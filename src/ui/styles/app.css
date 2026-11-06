@@ -149,7 +149,6 @@ button > svg {
   display: flex;
   flex-direction: column;
   background: var(--bg-sunken);
-  border-right: 1px solid var(--border);
   padding-top: 46px;
   overflow: hidden;
 }
@@ -1186,6 +1185,48 @@ button > svg {
   gap: var(--space-2);
   padding-top: var(--space-6);
   color: var(--text-tertiary);
+}
+
+/* The list and the bars over it. The bars float: rows start below them
+   (MessageList topInset) and scroll up under their glass. */
+.list-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.list-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+}
+
+/* Frosted glass, densest at the top and clear at the bottom: the tint fades
+   out and a mask fades the blur with it, so there is no hard lower edge. */
+.list-head::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--bg) 88%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 55%, transparent) 55%,
+    transparent 100%
+  );
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-mask-image: linear-gradient(to bottom, #000 45%, transparent);
+  mask-image: linear-gradient(to bottom, #000 45%, transparent);
+}
+
+.list-head:empty::before {
+  display: none;
 }
 
 /* Splits (Inbox only) on the left, filter chips on the right. */
@@ -3761,10 +3802,18 @@ button.sidebar-account svg {
 /* ---- loading skeleton ---------------------------------------------------- */
 
 .body-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
   padding: var(--space-2) 0 var(--space-3);
   /* Delayed: a cached body paints almost immediately, and a skeleton that
      flashes for 80ms is worse than nothing. */
   animation: skeleton-in var(--duration-base) var(--ease-out) 140ms both;
+}
+
+/* Inside the card it lines up with the text that replaces it. */
+.message-card .body-skeleton {
+  padding: var(--space-5) var(--space-4);
 }
 
 @keyframes skeleton-in {
@@ -3773,42 +3822,24 @@ button.sidebar-account svg {
   }
 }
 
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .skeleton-line {
-  height: 9px;
-  margin-bottom: 10px;
-  border-radius: 3px;
-  background: linear-gradient(
-    90deg,
-    var(--surface-hover) 0%,
-    var(--surface-selected) 50%,
-    var(--surface-hover) 100%
-  );
-  background-size: 200% 100%;
-  animation: skeleton-sweep 1.6s ease-in-out infinite;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-selected);
+  /* One slow breath, in step on every line, not a sweep per line. */
+  animation: skeleton-pulse 1.8s ease-in-out infinite;
 }
-
-/* Paragraph break, so the block reads as prose rather than one slab. */
-.skeleton-gap {
-  height: var(--space-3);
-}
-
-@keyframes skeleton-sweep {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
 
 @media (prefers-reduced-motion: reduce) {
   .body-skeleton,
   .skeleton-line {
     animation: none;
-  }
-  .skeleton-line {
-    background: var(--surface-hover);
   }
 }
 
@@ -3948,7 +3979,7 @@ button.sidebar-account svg {
 .shortcut-remap li { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; font-size: 12.5px; }
 .shortcut-remap-keys kbd { font-family: inherit; padding: 1px 5px; border: 1px solid var(--border); border-radius: var(--radius-sm); margin-left: 2px; }
 
-.tab-bar { display: flex; flex-shrink: 0; align-items: center; gap: 6px; height: 40px; padding: 0 10px; border-bottom: 1px solid var(--border); -webkit-app-region: drag; }
+.tab-bar { display: flex; flex-shrink: 0; align-items: center; gap: 6px; height: 40px; padding: 0 10px; -webkit-app-region: drag; }
 .tab-bar button, .tab-bar .tab { -webkit-app-region: no-drag; }
 .tab-nav { display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: none; color: var(--text-tertiary); cursor: pointer; }
 .tab-nav:disabled { opacity: 0.35; cursor: default; }

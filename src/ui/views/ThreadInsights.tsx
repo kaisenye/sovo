@@ -25,7 +25,7 @@ export function ThreadInsightsBar({ insights, busy, error, note }: Props) {
         <p className="ai-summary ai-muted">{note}</p>
       ) : null}
       {c && (
-        <p className="ai-why" title={`Sorted by ${c.model}`}>
+        <p className="ai-why" title={c.model === 'manual' ? 'Labelled by you' : `Sorted by ${c.model}`}>
           <span className="ai-why-chip" data-important={c.important}>
             {c.important ? 'Important' : 'Other'} · {c.category}
           </span>

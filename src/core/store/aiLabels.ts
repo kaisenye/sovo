@@ -113,9 +113,19 @@ export function messageLabelNames(accountId: number, messageId: string): string[
   ).map((r) => r.name)
 }
 
-/** Drops every custom-label verdict (the classifier was turned off). The labels themselves stay. */
+/**
+ * Drops every custom-label verdict (the classifier was turned off). The labels
+ * themselves stay, and so do the ones the user picked (a manual verdict, v24).
+ */
 export function clearMessageLabels(): number {
-  return getDb().prepare('DELETE FROM ai_message_labels').run().changes
+  return getDb()
+    .prepare(
+      `DELETE FROM ai_message_labels
+        WHERE NOT EXISTS (SELECT 1 FROM ai_classifications c
+                           WHERE c.account_id = ai_message_labels.account_id
+                             AND c.message_id = ai_message_labels.message_id AND c.manual = 1)`
+    )
+    .run().changes
 }
 
 /**
