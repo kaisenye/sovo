@@ -93,28 +93,28 @@
   --shadow-md: 0 4px 16px -2px rgba(17, 17, 16, 0.1), 0 1px 3px rgba(17, 17, 16, 0.06);
 }
 
-/* Dark — near-black with a blue cast, never pure #000 (harsh on OLED). */
+/* Dark — Linear-style charcoal: soft grey, not near-black. */
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #0d0d10;
-  --bg-raised: #141419;
-  --bg-sunken: #09090b;
+  --bg: #1c1d1f;
+  --bg-raised: #242528;
+  --bg-sunken: #17181a;
 
-  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-hover: rgba(255, 255, 255, 0.045);
   --surface-selected: rgba(255, 255, 255, 0.07);
   --surface-active: rgba(120, 150, 255, 0.13);
 
-  --text-primary: #ececed;
-  --text-secondary: #a0a0aa;
-  --text-tertiary: #6e6e78;
-  --text-quaternary: #4e4e57;
+  --text-primary: #ededef;
+  --text-secondary: #a8aab0;
+  --text-tertiary: #7c7f87;
+  --text-quaternary: #5c5f66;
 
-  --border: rgba(255, 255, 255, 0.07);
+  --border: rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.12);
 
   --accent: #6b8aff;
-  --accent-fg: #0d0d10;
+  --accent-fg: #1c1d1f;
   --accent-soft: color-mix(in srgb, var(--accent) 34%, var(--bg-raised));
   --unread: #8aa4ff;
   --flag: #f0a844;
@@ -144,24 +144,24 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #0d0d10;
-    --bg-raised: #141419;
-    --bg-sunken: #09090b;
+    --bg: #1c1d1f;
+    --bg-raised: #242528;
+    --bg-sunken: #17181a;
 
-    --surface-hover: rgba(255, 255, 255, 0.04);
+    --surface-hover: rgba(255, 255, 255, 0.045);
     --surface-selected: rgba(255, 255, 255, 0.07);
     --surface-active: rgba(120, 150, 255, 0.13);
 
-    --text-primary: #ececed;
-    --text-secondary: #a0a0aa;
-    --text-tertiary: #6e6e78;
-    --text-quaternary: #4e4e57;
+    --text-primary: #ededef;
+    --text-secondary: #a8aab0;
+    --text-tertiary: #7c7f87;
+    --text-quaternary: #5c5f66;
 
-    --border: rgba(255, 255, 255, 0.07);
+    --border: rgba(255, 255, 255, 0.08);
     --border-strong: rgba(255, 255, 255, 0.12);
 
     --accent: #6b8aff;
-    --accent-fg: #0d0d10;
+    --accent-fg: #1c1d1f;
     --accent-soft: color-mix(in srgb, var(--accent) 34%, var(--bg-raised));
     --unread: #8aa4ff;
     --flag: #f0a844;

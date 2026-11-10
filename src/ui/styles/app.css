@@ -4256,10 +4256,6 @@ button.sidebar-account svg {
   }
 }
 
-.ai-privacy {
-  margin-top: var(--space-3);
-}
-
 .ai-write {
   position: relative;
   display: flex;

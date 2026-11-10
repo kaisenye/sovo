@@ -248,11 +248,6 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         classifyOn={status.hasKey[ownerFor(status, 'classify')] && status.toggles.classify}
       />
 
-      <p className="settings-note ai-privacy">
-        Mail goes straight from this Mac to {NAME[p]}, only for the feature at work. No Sovo server, and your key
-        stays in the keychain.
-        {status.sortEngine === 'jev' && ' Sorting goes to TypeSafe instead.'}
-      </p>
       {error && <p className="settings-error">{error}</p>}
     </section>
   )

@@ -212,7 +212,7 @@ function buildDoc(
     : window.matchMedia('(prefers-color-scheme: dark)').matches
 
   const fg = dark ? '#ececed' : '#16161a'
-  const muted = dark ? '#6e6e78' : '#86868f'
+  const muted = dark ? '#7c7f87' : '#86868f'
   const link = dark ? '#8aa4ff' : '#2244cc'
   const quote = dark ? 'rgba(255,255,255,0.12)' : 'rgba(17,17,16,0.14)'
 
