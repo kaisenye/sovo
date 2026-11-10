@@ -1,3 +1,4 @@
+import { noEmDash } from './mailText.js'
 import type { AiFeature } from '../services/ai/types.js'
 import { getClassification, getReplyOptions, type Classification } from '../store/ai.js'
 import { getDb } from '../store/db.js'
@@ -65,6 +66,7 @@ function replyInsights(
   const inbound = msgs.find((m) => m.folder_id !== null && (m.from_addr ?? '').toLowerCase() !== me)
   const c = inbound ? candidate(inbound.id) : null
   const replyTarget = c && repliesEligible(c, Date.now(), { fresh: false }) ? c.id : null
-  const options = replyTarget && c?.message_id ? getReplyOptions(accountId, c.message_id) : null
+  // Replies cached before the no-em-dash rule are cleaned on the way out.
+  const options = replyTarget && c?.message_id ? (getReplyOptions(accountId, c.message_id)?.map((o) => noEmDash(o)) ?? null) : null
   return { replyTarget, replies: replyTarget && options ? { messageRowId: replyTarget, options } : null }
 }

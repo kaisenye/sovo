@@ -47,15 +47,22 @@ export function addressedToMe(c: Candidate): boolean {
   return [...addresses(c.to_addrs), ...addresses(c.cc_addrs)].includes(c.me)
 }
 
-/** Fresh, non-bulk Inbox mail from someone else, with a Message-ID to key results on. */
-export function classifyEligible(c: Candidate, now: number): boolean {
+/** How far back sorting reaches when it is switched on (queueClassifyBackfill). */
+export const CLASSIFY_BACKFILL_MS = 14 * 24 * 3600_000
+
+/**
+ * Non-bulk Inbox mail from someone else, with a Message-ID to key results on,
+ * no older than `windowMs`: fresh mail as it arrives (48 h), or the catch-up
+ * window when sorting is switched on.
+ */
+export function classifyEligible(c: Candidate, now: number, windowMs = FRESH_MS): boolean {
   return (
     !!c.message_id &&
     c.role === 'inbox' &&
     (c.from_addr ?? '').toLowerCase() !== c.me &&
     !c.bulk &&
     !c.list_unsubscribe &&
-    (c.date ?? 0) >= now - FRESH_MS
+    (c.date ?? 0) >= now - windowMs
   )
 }
 

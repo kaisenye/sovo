@@ -10,6 +10,7 @@ import { installAppMenu } from './menu.js'
 import { startReminderWorker } from './reminderWorker.js'
 import { startHistoryWorker } from './historyWorker.js'
 import { startAiWorker } from './aiWorker.js'
+import { queueClassifyBackfill } from '../src/core/ai/queue.js'
 import { initDb } from '../src/core/store/db.js'
 import { initAttachmentStore } from '../src/core/store/attachments.js'
 import {
@@ -242,6 +243,12 @@ app.whenReady().then(() => {
   )
   startReminderWorker()
   startHistoryWorker()
+  // Sorting on: catch up on recent mail without a verdict (cheap when there is none).
+  try {
+    queueClassifyBackfill()
+  } catch (err) {
+    console.error('[ai] catch-up sort not queued:', err)
+  }
   startAiWorker()
   // Every account gets its own warmed pool and parked IDLE connection, so mail
   // pushes for all of them rather than only whichever is on screen.

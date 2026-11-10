@@ -1,6 +1,7 @@
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { displayNameFor } from '../src/core/accounts/manage.js'
 import { askMail } from '../src/core/ai/ask.js'
+import { queueClassifyBackfill } from '../src/core/ai/queue.js'
 import { pastThreads } from '../src/core/ai/history.js'
 import { threadInsights } from '../src/core/ai/insights.js'
 import { suggestRepliesOnce } from '../src/core/ai/replies.js'
@@ -51,7 +52,10 @@ export function registerAiIpc(): void {
     clearClassifications: () => {
       clearClassifications()
       clearMessageLabels()
-    }
+      // Lists repaint, so no chip outlives the verdict behind it.
+      for (const w of BrowserWindow.getAllWindows()) w.webContents.send('ai:updated', { kinds: ['classify', 'labels'] })
+    },
+    sortRecent: () => void queueClassifyBackfill()
   })
   ipcMain.handle('ai:status', () => getAi().status())
   // A new key or new settings (a raised budget, another provider) may fix what

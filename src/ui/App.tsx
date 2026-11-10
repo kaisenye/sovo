@@ -41,7 +41,7 @@ import { ZeroModal } from './views/ZeroModal'
 import { CleanModal } from './views/CleanModal'
 import { ZeroState } from './views/ZeroState'
 import { Settings, type Section as SettingsSection } from './views/Settings'
-import { DEFAULT_SIDEBAR_LABELS, yourSidebarLabels, type LabelColors, type SidebarLabel } from './labelChips'
+import { DEFAULT_SIDEBAR_LABELS, labelInk, yourSidebarLabels, type LabelColors, type SidebarLabel } from './labelChips'
 import { Tasks } from './views/Tasks'
 import { ShortcutHelp } from './views/ShortcutHelp'
 import { Onboarding } from './views/Onboarding'
@@ -1017,10 +1017,12 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   const deleteDrafts = useCallback(async (explicit?: number[]) => {
     const ids = explicit ?? targetIds()
     if (!ids.length) return
-    for (const id of ids) await window.api.deleteDraft(id)
-    dropRows(ids)
+    const results = await Promise.all(ids.map((id) => window.api.deleteDraft(id)))
+    const gone = ids.filter((_, i) => results[i].ok)
+    dropRows(gone)
     clearChecked()
-  }, [targetIds, dropRows, clearChecked])
+    if (gone.length < ids.length) setActionError('Some drafts are on the server and could not be deleted here')
+  }, [targetIds, dropRows, clearChecked, setActionError])
 
   const applyFlags = useCallback(
     async (flag: string, add: boolean) => {
@@ -1184,11 +1186,15 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   )
 
   const doneSelected = useCallback(
-    (ids?: number[]) =>
-      doneAction(useStore.getState().activeFolderId, REMINDERS_VIEW_ID) === 'dismissReminder'
+    async (ids?: number[]): Promise<unknown> => {
+      const fid = useStore.getState().activeFolderId
+      // A local draft is on no server, so there is nothing to file: say so instead of doing nothing.
+      if (fid && isDraftsFolder(fid)) return setActionError('Drafts can’t be Done. ⌫ deletes them.')
+      return doneAction(fid, REMINDERS_VIEW_ID) === 'dismissReminder'
         ? dismissReminders(ids)
-        : moveSelected({ role: 'archive' }, 'Done', ids),
-    [moveSelected, dismissReminders]
+        : moveSelected({ role: 'archive' }, 'Done', ids)
+    },
+    [moveSelected, dismissReminders, isDraftsFolder, setActionError]
   )
   const notDoneSelected = useCallback(
     (ids?: number[]) => moveSelected({ role: 'inbox' }, 'Moved to Inbox', ids),
@@ -1250,19 +1256,21 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       const { index: idx, ids } = openThreadTarget(useStore.getState().rows, ot)
       if (idx >= 0) setSelectedIndex(idx)
       clearChecked()
-      closeThread()
+      // The thread stays on screen while the move lands, then the next one
+      // replaces it in place: closing first flashed the list in between.
       await act(ids)
 
       // The triaged row is gone, so the same index now holds the next message.
       // Reuse openRow so drafts and read-marking behave as they do elsewhere.
       const after = useStore.getState()
       const nextIndex = idx >= 0 ? Math.min(idx, after.rows.length - 1) : after.selectedIndex
-      if (after.rows[nextIndex]) {
-        setSelectedIndex(nextIndex)
-        openRow(nextIndex)
-      }
+      const next = after.rows[nextIndex]
+      const fid = after.activeFolderId
+      if (next) setSelectedIndex(nextIndex)
+      if (next?.thread_id && !(fid && isDraftsFolder(fid))) openRow(nextIndex)
+      else closeThread()
     },
-    [setSelectedIndex, clearChecked, closeThread, openRow]
+    [setSelectedIndex, clearChecked, closeThread, openRow, isDraftsFolder]
   )
 
   const starFromThread = useCallback(async () => {
@@ -1475,10 +1483,27 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     if (!ids.length) return
     const [local, gmail] = await Promise.all([window.api.localLabelChoices(ids), window.api.labelChoices(ids)])
     const current = gmail.length ? new Set(Object.values(await window.api.labelsFor(ids)).flat()) : new Set<string>()
-    const items = [...local, ...gmail.map((c) => ({ id: c, label: c, checked: current.has(c) }))]
+    // Dots in the sidebar's colours; Sovo's and Gmail's labels apart when both show.
+    const dotFor = (id: string): string =>
+      id === 'sovo:important'
+        ? 'var(--tone-important)'
+        : id.startsWith('sovo:cat:')
+          ? `var(--tone-${id.slice('sovo:cat:'.length)})`
+          : 'var(--tone-label)'
+    const both = local.length > 0 && gmail.length > 0
+    const items = [
+      ...local.map((c) => ({ ...c, dot: dotFor(c.id), group: both ? 'Sovo' : undefined })),
+      ...gmail.map((c) => ({
+        id: c,
+        label: c,
+        checked: current.has(c),
+        dot: labelInk(labelColors[c]) ?? 'var(--tone-label)',
+        group: both ? 'Gmail' : undefined
+      }))
+    ]
     if (!items.length) return setActionError('These messages cannot be labelled')
     setOverlay({ kind: 'label', ids, items })
-  }, [actionIds, setActionError])
+  }, [actionIds, setActionError, labelColors])
 
   /** From a thread the reminder targets the open thread, then advances like Done. */
   const onRemindPick = useCallback(
@@ -1882,6 +1907,14 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     />
   ) : null
 
+  /** Select all, in the row checkboxes' column: shown on list hover until something is checked (then the action bar has it). */
+  const selectAll =
+    rows.length > 0 && checkedIds.length === 0 ? (
+      <label className="action-bar-check list-select-all" title="Select all (⌘A)">
+        <input type="checkbox" checked={false} onChange={() => setCheckedAll(rows.map((r) => r.id))} aria-label="Select all" />
+      </label>
+    ) : null
+
   return (
     <div className="app" data-swap={screenSwap ?? undefined}>
       <div className="titlebar-drag" />
@@ -2043,14 +2076,21 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           <div className="list-area">
             {/* Floats over the list: rows scroll under its glass. */}
             <div className="list-head" ref={listHeadRef}>
-            {active && active.role !== 'drafts' && (
+            {active && active.role !== 'drafts' ? (
               <SplitBar
                 splits={active.role === 'inbox' ? splits : null}
                 activeSplit={splitId}
                 chip={chip}
                 onChip={toggleChip}
                 onClear={clearFilters}
+                lead={selectAll}
               />
+            ) : (
+              rows.length > 0 && (
+                <div className="split-bar">
+                  <span className="list-select-slot">{selectAll}</span>
+                </div>
+              )
             )}
             {/* Only while something is checked: the row checkboxes show on hover. */}
             {checkedIds.length > 0 && (
@@ -2066,7 +2106,8 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
                 onMarkUnread={() => void setThreadsRead(false)}
                 onStar={() => void starSelected()}
                 onDone={() => void doneSelected()}
-                onTrash={() => void moveSelected({ role: 'trash' }, 'Trashed')}
+                // Same path as ⌫: in Drafts that deletes, elsewhere it trashes.
+                onTrash={() => void triageSelected()}
               />
             )}
             </div>

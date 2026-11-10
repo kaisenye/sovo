@@ -21,6 +21,8 @@ export interface AiHandlerDeps {
   clearKey(p: AiKeyOwner): void
   /** Deletes every stored verdict (store/ai.ts clearClassifications). */
   clearClassifications(): void
+  /** Queues the catch-up sort of recent mail (queue.ts queueClassifyBackfill). */
+  sortRecent?(): void
 }
 
 type Result = { ok: true; status: AiStatus } | ReturnType<typeof aiFail>
@@ -49,14 +51,14 @@ export function createAiHandlers(deps: AiHandlerDeps) {
     },
 
     // Removing a key switches off every feature that used it, so nothing turns
-    // itself back on when a key is added later.
+    // itself back on when a key is added later. Its verdicts stay: removing a
+    // key is how one is replaced, and a key swap must not wipe the sorting
+    // (only switching Sort new mail off does).
     clearKey(provider: AiKeyOwner): Result {
       if (!isKeyOwner(provider)) return aiFail(new Error('Unknown AI provider'))
-      const wasOn = classifyOn()
       deps.clearKey(provider)
       const s = readAiSettings(deps.settings())
       for (const f of AI_FEATURES) if (keyOwnerFor(f, s) === provider) deps.setSetting(AI_KEYS.feature(f), '0')
-      dropVerdictsIfOff(wasOn)
       return { ok: true, status: deps.status() }
     },
 
@@ -68,6 +70,8 @@ export function createAiHandlers(deps: AiHandlerDeps) {
         const wasOn = classifyOn()
         for (const [k, v] of Object.entries(patch)) deps.setSetting(k, v)
         dropVerdictsIfOff(wasOn)
+        // Switched on: the last two weeks are sorted too, not only mail from now on.
+        if (!wasOn && classifyOn()) deps.sortRecent?.()
         return { ok: true, status: deps.status() }
       } catch (e) {
         return aiFail(e)

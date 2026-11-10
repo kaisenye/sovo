@@ -18,7 +18,7 @@ import { setSetting, upsertMessage } from '../store/repo.js'
 import { AI_CATEGORIES } from './classify.js'
 import { labelMessage, labelsRequest, parseLabels } from './labels.js'
 import { enqueueForMessage, runAiJobs } from './queue.js'
-import { AI_CATEGORY_NAMES } from '../../ui/labelChips.js'
+import { AI_CATEGORY_IDS } from '../../ui/categories.js'
 
 const NOW = 10_000_000_000
 let uid = 0
@@ -185,6 +185,6 @@ describe('the labels queue', () => {
 describe('the renderer\'s category names', () => {
   // The renderer may not import classify.ts, so it spells the categories out.
   it('match the categories the classifier uses, in order', () => {
-    expect(AI_CATEGORY_NAMES.map((n) => n.toLowerCase())).toEqual([...AI_CATEGORIES])
+    expect([...AI_CATEGORY_IDS]).toEqual([...AI_CATEGORIES])
   })
 })

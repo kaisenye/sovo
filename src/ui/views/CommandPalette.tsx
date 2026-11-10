@@ -219,17 +219,29 @@ export function CommandPalette({ open, startInAsk, actions, onClose, onOpenMessa
         <div className="palette-list">
           {asking ? (
             askBusy ? (
-              <div className="palette-empty">Thinking…</div>
+              <div className="ai-ask-wait" aria-busy="true" aria-live="polite">
+                <span className="ai-thinking">Reading your mail…</span>
+                {[94, 82, 58].map((w, i) => (
+                  <span key={i} className="skeleton-line" style={{ width: `${w}%`, ['--i' as string]: i + 1 }} />
+                ))}
+              </div>
             ) : askError ? (
-              <div className="palette-empty palette-error">{askError}</div>
+              <div className="palette-empty palette-error ai-rise">{askError}</div>
             ) : answer ? (
               <>
-                <p className="palette-answer">{answer.answer}</p>
+                <AnswerText
+                  text={answer.answer}
+                  onCite={(n) => {
+                    const src = answer.sources.find((x) => x.n === n)
+                    if (src) openSource(src)
+                  }}
+                />
                 {answer.sources.map((s, i) => (
                   <button
                     key={`s-${s.account_id}-${s.id}`}
                     type="button"
-                    className="palette-row"
+                    style={{ ['--i' as string]: i + 2 }}
+                    className="palette-row palette-source ai-rise"
                     data-selected={i === selected}
                     onMouseEnter={() => setSelected(i)}
                     onClick={() => openSource(s)}
@@ -242,10 +254,7 @@ export function CommandPalette({ open, startInAsk, actions, onClose, onOpenMessa
                 ))}
               </>
             ) : (
-              <div className="palette-empty">
-                Ask a question and press ↵. The answer comes from your local mail; the matching
-                messages go to your AI provider.
-              </div>
+              <div className="palette-empty">Ask anything about your mail, then ↵.</div>
             )
           ) : items.length === 0 ? (
             <div className="palette-empty">
@@ -296,4 +305,53 @@ export function CommandPalette({ open, startInAsk, actions, onClose, onOpenMessa
       </div>
     </div>
   )
+}
+
+/** One line of an answer, with each [n] (or [1, 3]) as a chip that opens that source. */
+function withCites(line: string, onCite: (n: number) => void): React.ReactNode[] {
+  const out: React.ReactNode[] = []
+  let last = 0
+  for (const m of line.matchAll(/\s*\[(\d+(?:\s*,\s*\d+)*)\]/g)) {
+    if (m.index! > last) out.push(line.slice(last, m.index))
+    for (const n of m[1].split(',').map((x) => Number(x.trim())))
+      out.push(
+        <button key={`${m.index}-${n}`} type="button" className="ask-cite" onClick={() => onCite(n)} title={`Open source ${n}`}>
+          {n}
+        </button>
+      )
+    last = m.index! + m[0].length
+  }
+  if (last < line.length) out.push(line.slice(last))
+  return out
+}
+
+/**
+ * Ask AI's answer: paragraphs, "- " lines as a list, citations as chips. The
+ * model is asked for plain text (ask.ts cleanAnswer strips the rest), so this
+ * is all the formatting there is.
+ */
+function AnswerText({ text, onCite }: { text: string; onCite: (n: number) => void }) {
+  const blocks: React.ReactNode[] = []
+  let list: string[] = []
+  const flush = (): void => {
+    if (!list.length) return
+    blocks.push(
+      <ul key={`l${blocks.length}`}>
+        {list.map((l, i) => (
+          <li key={i}>{withCites(l, onCite)}</li>
+        ))}
+      </ul>
+    )
+    list = []
+  }
+  for (const raw of text.split('\n')) {
+    const line = raw.trim()
+    if (line.startsWith('- ')) list.push(line.slice(2))
+    else {
+      flush()
+      if (line) blocks.push(<p key={`p${blocks.length}`}>{withCites(line, onCite)}</p>)
+    }
+  }
+  flush()
+  return <div className="palette-answer ai-rise">{blocks}</div>
 }

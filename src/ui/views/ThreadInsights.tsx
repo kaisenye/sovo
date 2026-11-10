@@ -10,29 +10,41 @@ interface Props {
   note?: string | null
 }
 
-/** The summary line and the classifier's reason, under the thread header. */
-export function ThreadInsightsBar({ insights, busy, error, note }: Props) {
-  if (!insights) return null
-  const { summary, classification: c } = insights
-  if (!summary && !c && busy !== 'summary' && !error && !note) return null
+/**
+ * The summary line, in the toolbar under the subject (Thread.tsx): while it
+ * is being written, the summary, or a muted note. Null when there is none.
+ */
+export function ThreadSummaryLine({ insights, busy, note }: Omit<Props, 'error'>) {
+  if (busy === 'summary')
+    return (
+      <p className="thread-toolbar-summary" aria-live="polite">
+        <span className="ai-thinking">Summarizing…</span>
+      </p>
+    )
+  const summary = insights?.summary
+  if (summary)
+    return (
+      <>
+        {/* Keyed, so a new summary fades in again. */}
+        <p key={summary} className="thread-toolbar-summary ai-rise">
+          {summary}
+        </p>
+        {/* The whole summary on hover: the line above is cut to one line. */}
+        <div className="thread-summary-tip" role="tooltip">
+          {summary}
+        </div>
+      </>
+    )
+  if (note) return <p className="thread-toolbar-summary ai-muted ai-rise">{note}</p>
+  return null
+}
+
+/** An AI error for this thread, under the thread header. */
+export function ThreadInsightsBar({ error }: Pick<Props, 'error'>) {
+  if (!error) return null
   return (
     <div className="ai-insights">
-      {busy === 'summary' ? (
-        <p className="ai-summary ai-muted">Summarizing…</p>
-      ) : summary ? (
-        <p className="ai-summary">{summary}</p>
-      ) : note ? (
-        <p className="ai-summary ai-muted">{note}</p>
-      ) : null}
-      {c && (
-        <p className="ai-why" title={c.model === 'manual' ? 'Labelled by you' : `Sorted by ${c.model}`}>
-          <span className="ai-why-chip" data-important={c.important}>
-            {c.important ? 'Important' : 'Other'} · {c.category}
-          </span>
-          {c.reason}
-        </p>
-      )}
-      {error && <p className="ai-error">{error}</p>}
+      <p className="ai-error ai-rise">{error}</p>
     </div>
   )
 }
@@ -49,12 +61,26 @@ export function ReplySuggestions({
 }) {
   const replies = insights?.replies
   const options = replies?.options ?? []
-  if (busy === 'replies' && !options.length) return <div className="ai-replies ai-muted">Suggesting replies…</div>
+  if (busy === 'replies' && !options.length)
+    return (
+      <div className="ai-replies" aria-busy="true" aria-label="Suggesting replies">
+        {[148, 212, 176].map((w, i) => (
+          <span key={i} className="ai-reply-ghost" style={{ width: w, ['--i' as string]: i }} />
+        ))}
+      </div>
+    )
   if (!options.length) return null
   return (
     <div className="ai-replies" aria-label="Instant replies">
       {options.map((o, i) => (
-        <button key={i} type="button" title={o} onClick={() => replies && onUse({ text: o, messageRowId: replies.messageRowId })}>
+        <button
+          key={`${i}:${o}`}
+          type="button"
+          title={o}
+          className="ai-rise"
+          style={{ ['--i' as string]: i }}
+          onClick={() => replies && onUse({ text: o, messageRowId: replies.messageRowId })}
+        >
           <span className="thread-reply-hint">{i + 1}</span>
           <span className="ai-reply-text">{o}</span>
         </button>

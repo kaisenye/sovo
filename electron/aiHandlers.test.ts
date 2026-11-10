@@ -20,14 +20,15 @@ function setup(settings: Record<string, string>, keys: Partial<Record<AiKeyOwner
     providers: { anthropic: provider('anthropic'), openai: provider('openai'), deepseek: provider('deepseek') },
     usage: { spentMicros: () => 0, record: () => {} }
   })
-  const cleared = { verdicts: 0 }
+  const cleared = { verdicts: 0, sorts: 0 }
   const h = createAiHandlers({
     status: () => ai.status(),
     settings: () => settings,
     setSetting: (k, v) => void (settings[k] = v),
     saveKey: (p, k) => void vault.set(p, k),
     clearKey: (p) => void vault.delete(p),
-    clearClassifications: () => void cleared.verdicts++
+    clearClassifications: () => void cleared.verdicts++,
+    sortRecent: () => void cleared.sorts++
   })
   return { ai, h, settings, cleared }
 }
@@ -71,7 +72,7 @@ describe('ai IPC handlers', () => {
     expect(anyFeature(ai.status())).toBe(false)
   })
 
-  it('drops stored verdicts whenever the classifier ends up off, and only then', () => {
+  it('drops stored verdicts when sorting is switched off, but not when a key is removed', () => {
     const { h, cleared } = setup({ ai_provider: 'anthropic', ...allOn }, { anthropic: KEY, openai: KEY })
     h.setConfig({ budgetUsd: 2 })
     h.setConfig({ feature: { feature: 'summary', on: false } })
@@ -82,8 +83,11 @@ describe('ai IPC handlers', () => {
     h.setConfig({ provider: 'openai' })
     expect(cleared.verdicts).toBe(2)
     h.setConfig({ feature: { feature: 'classify', on: true } })
+    // Each switch-on (twice above) also sorted the last two weeks.
+    expect(cleared.sorts).toBe(2)
+    // Removing a key (how one is replaced) switches sorting off but keeps its verdicts.
     h.clearKey('openai')
-    expect(cleared.verdicts).toBe(3)
+    expect(cleared.verdicts).toBe(2)
   })
 
   it('rejects an unknown provider without touching the vault', () => {

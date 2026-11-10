@@ -7,7 +7,7 @@ import { AiError } from '../services/ai/types.js'
 import { clearClassifications, getClassification, getReplyOptions } from '../store/ai.js'
 import { closeDb, getDb, initDb } from '../store/db.js'
 import { getSettings, setSetting, upsertMessage } from '../store/repo.js'
-import { enqueueForMessage, runAiJobs } from './queue.js'
+import { enqueueForMessage, queueClassifyBackfill, runAiJobs } from './queue.js'
 
 const NOW = 10_000_000_000
 let uid = 0
@@ -162,5 +162,36 @@ describe('draining the queue', () => {
     const r = await runAiJobs({ ai: fakeAi(() => VERDICT), ensureBody: async () => {}, now: () => later })
     expect(r.done).toEqual([])
     expect(jobs()[0].status).toBe('expired')
+  })
+})
+
+describe('sorting catches up when switched on', () => {
+  const DAY = 86_400_000
+  it('queues the last 14 days without a verdict, and the worker sorts them', async () => {
+    add({ date: NOW - 3 * DAY })
+    add({ date: NOW - 10 * DAY })
+    add({ date: NOW - 20 * DAY }) // past the window
+    add({ date: NOW - 2 * DAY, bulk: 1 }) // bulk
+    add({ date: NOW - 2 * DAY, from: 'me@x.test' }) // my own
+    expect(queueClassifyBackfill(NOW)).toBe(0) // sorting off: nothing
+    setSetting('ai_classify', '1')
+    expect(queueClassifyBackfill(NOW)).toBe(2)
+    // Again: nothing new, nothing doubled.
+    expect(queueClassifyBackfill(NOW)).toBe(0)
+    const ai = fakeAi(() => VERDICT)
+    await runAiJobs({ ai, ensureBody: async () => {}, now: () => NOW })
+    expect(getClassification(1, '<q1@t>')?.category).toBe('work')
+    expect(getClassification(1, '<q2@t>')?.category).toBe('work')
+    expect(ai.calls).toHaveLength(2)
+  })
+
+  it('re-queues mail whose old job finished but lost its verdict', async () => {
+    setSetting('ai_classify', '1')
+    add({ date: NOW - 3 * DAY })
+    queueClassifyBackfill(NOW)
+    await runAiJobs({ ai: fakeAi(() => VERDICT), ensureBody: async () => {}, now: () => NOW })
+    clearClassifications()
+    expect(queueClassifyBackfill(NOW)).toBe(1)
+    expect(jobs()).toEqual([expect.objectContaining({ message_id: '<q1@t>', kind: 'classify', status: 'pending' })])
   })
 })

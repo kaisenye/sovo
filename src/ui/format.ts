@@ -21,7 +21,9 @@ export function formatDate(epoch: number | null): string {
   if (d.getFullYear() === now.getFullYear()) {
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
   }
-  return d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+  // Another year names the day and the year: "Aug 23" alone reads as this
+  // year's 23rd, not August 2023.
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -32,12 +34,13 @@ function ordinal(n: number): string {
   return `${n}${['th', 'st', 'nd', 'rd'][n % 10] ?? 'th'}`
 }
 
-/** A message's own date in a thread: "Oct 13th, 11:54 AM". */
-export function formatFullDate(epoch: number | null): string {
+/** A message's own date in a thread: "Oct 13th, 11:54 AM", or "Aug 23rd 2023, 4:05 PM" in another year. */
+export function formatFullDate(epoch: number | null, now = Date.now()): string {
   if (!epoch) return ''
   const d = new Date(epoch)
   const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-  return `${MONTHS_SHORT[d.getMonth()]} ${ordinal(d.getDate())}, ${time}`
+  const year = d.getFullYear() === new Date(now).getFullYear() ? '' : ` ${d.getFullYear()}`
+  return `${MONTHS_SHORT[d.getMonth()]} ${ordinal(d.getDate())}${year}, ${time}`
 }
 
 /** Prefer a display name; fall back to the local part of the address. */

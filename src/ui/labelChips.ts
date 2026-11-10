@@ -1,25 +1,12 @@
 import type { MessageListRow } from '../core/store/types'
 import { gmailChip, labelChip, type ChipId } from './chips'
 
-/**
- * The classifier's categories (src/core/ai/classify.ts AI_CATEGORIES), in its
- * order, as the UI names them. The renderer may not import classify.ts, so a
- * test keeps the two in step.
- */
-export const AI_CATEGORY_NAMES = [
-  'Personal',
-  'Work',
-  'Billing',
-  'Notification',
-  'Marketing',
-  'Newsletter',
-  'Calendar',
-  'Support',
-  'Other'
-] as const
+import { AI_CATEGORY_IDS, AI_CATEGORY_NAMES, categoryName, type AiCategoryId } from './categories'
+
+export { AI_CATEGORY_NAMES, categoryName }
 
 /** A chip's colour: Important, one per category, or `label` for an inbox's own labels. */
-export type ChipTone = 'important' | 'label' | Lowercase<(typeof AI_CATEGORY_NAMES)[number]>
+export type ChipTone = 'important' | 'label' | AiCategoryId
 
 export interface LabelChipView {
   name: string
@@ -48,9 +35,6 @@ export function labelInk(c: { bg: string; fg: string } | undefined): string | un
   return chroma(ink) < 40 ? undefined : ink
 }
 
-export function categoryName(category: string): string {
-  return AI_CATEGORY_NAMES.find((n) => n.toLowerCase() === category.toLowerCase()) ?? category
-}
 
 /**
  * Scape's row chips: Important when the classifier said so, then the category
@@ -86,10 +70,10 @@ export interface SidebarLabel extends LabelChipView {
  */
 export const DEFAULT_SIDEBAR_LABELS: SidebarLabel[] = [
   { name: 'Important', tone: 'important', chip: labelChip('Important') },
-  ...AI_CATEGORY_NAMES.filter((n) => n !== 'Other').map((n) => ({
-    name: n,
-    tone: n.toLowerCase() as ChipTone,
-    chip: labelChip(n)
+  ...AI_CATEGORY_IDS.filter((id) => id !== 'other').map((id) => ({
+    name: categoryName(id),
+    tone: id,
+    chip: labelChip(categoryName(id))
   }))
 ]
 

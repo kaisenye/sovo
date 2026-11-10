@@ -5,6 +5,10 @@ export interface PickerItem {
   label: string
   /** Label picker: shows a check; Enter toggles instead of closing. */
   checked?: boolean
+  /** A colour dot before the label (any CSS colour, a var() included). */
+  dot?: string
+  /** A heading shown above the first item of each group. */
+  group?: string
 }
 
 interface Props {
@@ -74,11 +78,18 @@ export function Picker({ title, items, onPick, onClose, emptyText = 'Nothing to 
           {shown.length === 0 && <li className="picker-hint">{emptyText}</li>}
           {shown.map((it, i) => (
             <li key={it.id}>
-              <button type="button" data-active={i === active} onClick={() => onPick(it.id)}>
-                <span>{it.label}</span>
-                {it.checked !== undefined && (
-                  <span className="picker-meta">{it.checked ? '✓' : ''}</span>
-                )}
+              {it.group && it.group !== shown[i - 1]?.group && <div className="picker-group">{it.group}</div>}
+              <button
+                type="button"
+                data-active={i === active}
+                data-checked={it.checked === true ? true : undefined}
+                aria-pressed={it.checked}
+                onClick={() => onPick(it.id)}
+                onMouseMove={() => setActive(i)}
+              >
+                {it.dot && <span className="picker-dot" style={{ background: it.dot }} />}
+                <span className="picker-label">{it.label}</span>
+                {it.checked !== undefined && <span className="picker-box" aria-hidden="true" />}
               </button>
             </li>
           ))}

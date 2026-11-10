@@ -66,10 +66,26 @@ export function MessageBody({ messageId, onLoaded, activeLink }: Props) {
     const probe = probeRef.current
     if (!probe || !body?.ok) return
 
+    // The probe lives in its own shadow root, so its styles never reach the app.
+    const root = probe.shadowRoot ?? probe.attachShadow({ mode: 'open' })
+    root.innerHTML = buildDoc(body.html, showQuotes || onlyQuoted).probeHtml
+
     let raf = 0
+    // Heights seen so far: a layout that alternates between two of them (a
+    // scrollbar coming and going, images rescaling with it) settles on the
+    // taller one instead of shaking.
+    const seen: number[] = []
     const measure = (): void => {
       const h = probe.scrollHeight
-      if (h > 0) setHeight(Math.min(20000, Math.max(40, h + 8)))
+      if (h <= 0) return
+      const n = seen.length
+      if (n >= 2 && h === seen[n - 2] && h !== seen[n - 1]) {
+        setHeight(Math.min(20000, Math.max(40, Math.max(h, seen[n - 1]) + 8)))
+        observer.disconnect()
+        return
+      }
+      seen.push(h)
+      setHeight(Math.min(20000, Math.max(40, h + 8)))
     }
 
     const observer = new ResizeObserver(() => {
@@ -114,15 +130,11 @@ export function MessageBody({ messageId, onLoaded, activeLink }: Props) {
       )}
       {/*
         Hidden measuring probe. Content is the same main-process-sanitised
-        HTML; React's innerHTML never executes <script> tags, and the probe is
-        aria-hidden and visually removed so it is inert in every sense.
+        HTML, set into a shadow root (the effect above) so the frame's CSS
+        stays out of the app; innerHTML never executes <script> tags, and the
+        probe is aria-hidden and visually removed so it is inert in every sense.
       */}
-      <div
-        ref={probeRef}
-        className="body-probe"
-        aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: doc.probeHtml }}
-      />
+      <div ref={probeRef} className="body-probe" aria-hidden="true" />
       <iframe
         ref={frameRef}
         className="body-frame"
@@ -237,8 +249,10 @@ function buildDoc(
   // The probe reuses the frame's HTML and CSS so its layout — and therefore
   // its height — matches. Blocked images keep data-blocked-src, so it makes
   // no network requests of its own.
+  // In the probe's shadow root the host element stands in for <html>/<body>.
+  const probeCss = css.replace('html,body {', ':host {').replace(/\n\s*body \{/, '\n    :host {')
   return {
     srcDoc,
-    probeHtml: `<style>${css}</style><div${cls}>${html}</div>`
+    probeHtml: `<style>${probeCss}</style><div${cls}>${html}</div>`
   }
 }

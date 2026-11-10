@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatFullDate, recipientLabel, recipientNames, senderLabel } from './format.js'
+import { formatDate, formatFullDate, recipientLabel, recipientNames, senderLabel } from './format.js'
 
 describe('recipientLabel', () => {
   it('falls back to the sender when the column was never selected', () => {
@@ -45,7 +45,11 @@ describe('senderLabel', () => {
 describe('thread header text', () => {
   it('writes the full date the way Scape does: month, ordinal day, time', () => {
     const at = (y: number, mo: number, d: number, h: number, mi: number) => new Date(y, mo, d, h, mi).getTime()
-    expect(formatFullDate(at(2026, 9, 13, 11, 54))).toMatch(/^Oct 13th, 11:54\sAM$/)
+    const NOW = at(2026, 10, 9, 12, 0)
+    expect(formatFullDate(at(2026, 9, 13, 11, 54), NOW)).toMatch(/^Oct 13th, 11:54\sAM$/)
+    // Another year says which: "Aug 23" alone reads as this year.
+    expect(formatFullDate(at(2023, 7, 23, 16, 5), NOW)).toMatch(/^Aug 23rd 2023, 4:05\sPM$/)
+    expect(formatDate(at(2023, 7, 23, 16, 5))).toMatch(/^Aug 23, 2023$/)
     expect(formatFullDate(at(2026, 9, 1, 15, 5))).toMatch(/^Oct 1st, 3:05\sPM$/)
     expect(formatFullDate(at(2026, 9, 22, 9, 0))).toMatch(/^Oct 22nd, 9:00\sAM$/)
     expect(formatFullDate(at(2026, 9, 11, 9, 0))).toMatch(/^Oct 11th/)

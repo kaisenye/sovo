@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { AccountSummary, AiFailure, AiFeature, AiKeyOwner, AiProviderId, AiStatus } from '../../../electron/preload'
 import { budgetEdit, modelEdit } from '../aiSettingsInput'
 import { AiLabelSettings } from './AiLabelSettings'
@@ -10,11 +10,11 @@ const PROVIDERS: { id: AiProviderId; label: string; keyHint: string }[] = [
 ]
 
 const FEATURES: { id: AiFeature; label: string }[] = [
-  { id: 'write', label: 'Write with AI in compose (⌘J)' },
-  { id: 'summary', label: 'One-line summary when you open a conversation' },
-  { id: 'replies', label: 'Instant Reply: three suggested replies, prepared for new mail that needs one' },
-  { id: 'classify', label: 'Sort new mail: Important / Other, a category, and your own labels below' },
-  { id: 'ask', label: 'Ask AI from ⌘K (press ⇥), answered from your local mail' }
+  { id: 'write', label: 'Write with AI (⌘J)' },
+  { id: 'summary', label: 'One-line summaries' },
+  { id: 'replies', label: 'Instant Reply: three replies, ready before you open' },
+  { id: 'classify', label: 'Sort new mail into Important, Other and labels' },
+  { id: 'ask', label: 'Ask AI from ⌘K (⇥)' }
 ]
 
 const NAME: Record<AiProviderId, string> = { anthropic: 'Anthropic', openai: 'OpenAI', deepseek: 'DeepSeek' }
@@ -73,9 +73,13 @@ function KeyField({
   )
 }
 
-/** The model field's text: empty while the provider's default is in use. */
-const shownModel = (s: AiStatus): string =>
-  s.models[s.provider] === s.defaultModels[s.provider] ? '' : s.models[s.provider]
+/** The model field's text: the model in use, the default included, so a saved model never looks lost. */
+const shownModel = (s: AiStatus): string => s.models[s.provider]
+
+/** ↵ commits a settings field the way leaving it does. */
+const commitOnEnter = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+  if (e.key === 'Enter' && !e.nativeEvent.isComposing) e.currentTarget.blur()
+}
 
 /** Settings → AI. Reads and writes through window.api; the key is write-only. */
 export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSummary[]; activeAccountId: number | null }) {
@@ -83,6 +87,8 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
   const [model, setModel] = useState('')
   const [budget, setBudget] = useState('')
   const [error, setError] = useState<string | null>(null)
+  /** Bumps on each saved field edit, so "Saved" shows again. */
+  const [saved, setSaved] = useState(0)
 
   const show = (s: AiStatus): void => {
     setStatus(s)
@@ -100,6 +106,36 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
     show(r.status)
   }
 
+  const saveModel = async (st: AiStatus, field: string): Promise<void> => {
+    const m = modelEdit(field, shownModel(st))
+    if (m === null) return setModel(shownModel(st))
+    const r = await window.api.aiSetConfig({ model: { provider: st.provider, model: m } })
+    apply(r)
+    if (r.ok) setSaved((n) => n + 1)
+  }
+  const saveBudget = async (st: AiStatus, field: string): Promise<void> => {
+    const b = budgetEdit(field, st.budgetUsd)
+    if (b === null) return setBudget(String(st.budgetUsd))
+    const r = await window.api.aiSetConfig({ budgetUsd: b })
+    apply(r)
+    if (r.ok) setSaved((n) => n + 1)
+  }
+
+  // Closing Settings (Esc, Back) unmounts the fields without a blur: save what was typed.
+  const pending = useRef({ status, model, budget })
+  pending.current = { status, model, budget }
+  useEffect(
+    () => () => {
+      const { status: st, model: m, budget: b } = pending.current
+      if (!st) return
+      if (modelEdit(m, shownModel(st)) !== null)
+        void window.api.aiSetConfig({ model: { provider: st.provider, model: modelEdit(m, shownModel(st))! } })
+      const nb = budgetEdit(b, st.budgetUsd)
+      if (nb !== null) void window.api.aiSetConfig({ budgetUsd: nb })
+    },
+    []
+  )
+
   if (!status) return null
   const p = status.provider
   const hasKey = status.hasKey[p]
@@ -107,7 +143,7 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
   return (
     <section className="settings-section ai-settings">
       <p className="settings-note">
-        Bring your own key. Every feature is off until you switch it on, and nothing is sent anywhere until then.
+        Bring your own key. Everything is off until you flip it on.
       </p>
 
       <div className="settings-themes" role="radiogroup" aria-label="AI provider">
@@ -135,14 +171,13 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
       <div className="settings-split-form">
         <input
           aria-label="Model"
+          title={`Clear it to go back to ${status.defaultModels[p]}`}
           placeholder={`Model (default ${status.defaultModels[p]})`}
           value={model}
+          spellCheck={false}
           onChange={(e) => setModel(e.target.value)}
-          onBlur={async () => {
-            const m = modelEdit(model, shownModel(status))
-            if (m === null) return setModel(shownModel(status))
-            apply(await window.api.aiSetConfig({ model: { provider: p, model: m } }))
-          }}
+          onKeyDown={commitOnEnter}
+          onBlur={() => void saveModel(status, model)}
         />
         <input
           aria-label="Daily budget in US dollars"
@@ -152,16 +187,17 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
           step={0.5}
           value={budget}
           onChange={(e) => setBudget(e.target.value)}
-          onBlur={async () => {
-            const b = budgetEdit(budget, status.budgetUsd)
-            if (b === null) return setBudget(String(status.budgetUsd))
-            apply(await window.api.aiSetConfig({ budgetUsd: b }))
-          }}
+          onKeyDown={commitOnEnter}
+          onBlur={() => void saveBudget(status, budget)}
         />
       </div>
       <p className="settings-note">
-        Daily budget ${status.budgetUsd.toFixed(2)} · spent today ${status.spentTodayUsd.toFixed(2)}. When it runs out,
-        AI stops until tomorrow; background work stops at 80% of it.
+        ${status.spentTodayUsd.toFixed(2)} of ${status.budgetUsd.toFixed(2)} spent today. Background work naps at 80%.
+        {saved > 0 && (
+          <span key={saved} className="ai-saved" role="status">
+            Saved
+          </span>
+        )}
       </p>
 
       {FEATURES.map((f) => {
@@ -179,14 +215,14 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         )
       })}
 
-      <p className="settings-note">Sorting and your labels run on</p>
+      <p className="settings-note">Sort with</p>
       <div className="settings-themes" role="radiogroup" aria-label="Sorting engine">
         <button
           type="button"
           data-on={status.sortEngine === 'provider'}
           onClick={async () => apply(await window.api.aiSetConfig({ sortEngine: 'provider' }))}
         >
-          {NAME[p]}, like the rest
+          {NAME[p]}
         </button>
         <button
           type="button"
@@ -200,9 +236,8 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
         <>
           <KeyField owner="typesafe" label="TypeSafe" hint="from console.typesafe.ai" saved={status.hasKey.typesafe} apply={apply} />
           <p className="settings-note">
-            Jev only sorts: it answers yes-or-no and pick-one questions and writes nothing, for about $0.04 per million
-            tokens. It is strongest on English mail; check its verdicts on Chinese mail before relying on them.
-            Switching engine turns sorting off until you switch it on again.
+            Jev only sorts, for about $0.04 per million tokens. Best on English; spot-check Chinese mail. Switching
+            engines pauses sorting.
           </p>
         </>
       )}
@@ -214,13 +249,9 @@ export function AiSettings({ accounts, activeAccountId }: { accounts: AccountSum
       />
 
       <p className="settings-note ai-privacy">
-        Privacy: when a feature runs, the sender, subject and text of the messages it works on are sent from this Mac
-        straight to {NAME[p]} with your key. Sovo has no server of its own. Your key is encrypted with the macOS
-        keychain and never leaves this Mac except to {NAME[p]}. Ask AI sends the few local messages that match your
-        question. Instant Reply and Write with AI also send a few earlier messages with the same person, so replies
-        fit what was said before.
-        {status.sortEngine === 'jev' &&
-          ' Sorting and your labels send the sender, subject and text of new mail to TypeSafe instead, with your TypeSafe key.'}
+        Mail goes straight from this Mac to {NAME[p]}, only for the feature at work. No Sovo server, and your key
+        stays in the keychain.
+        {status.sortEngine === 'jev' && ' Sorting goes to TypeSafe instead.'}
       </p>
       {error && <p className="settings-error">{error}</p>}
     </section>

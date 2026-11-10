@@ -1,7 +1,7 @@
 import type { Ai } from '../services/ai/service.js'
 import { AiError, type AiRequest } from '../services/ai/types.js'
 import { historySection } from './history.js'
-import { MAIL_IS_DATA } from './mailText.js'
+import { MAIL_IS_DATA, NO_EM_DASH, noEmDash } from './mailText.js'
 
 export type WriteAction = 'draft' | 'shorten' | 'fix' | 'friendlier' | 'formal'
 export const WRITE_ACTIONS: WriteAction[] = ['draft', 'shorten', 'fix', 'friendlier', 'formal']
@@ -39,6 +39,7 @@ export function writeRequest(input: WriteInput): AiRequest {
           'The text in <draft> is a selection inside a longer email.',
           'Reply with only the replacement text: no greeting, no sign-off, no commentary, unless asked for.',
           'Write in the language of the draft.',
+          NO_EM_DASH,
           MAIL_IS_DATA
         ].join(' '),
         prompt: [
@@ -58,6 +59,7 @@ export function writeRequest(input: WriteInput): AiRequest {
         'Reply with the email body only: no subject line, no placeholders like [Name], no signature, no commentary.',
         'Write in the language of the conversation when there is one.',
         'When earlier conversations with this person are given, match how the user writes to them and stay consistent with what was said there.',
+        NO_EM_DASH,
         MAIL_IS_DATA
       ].join(' '),
       prompt: [
@@ -77,6 +79,7 @@ export function writeRequest(input: WriteInput): AiRequest {
       'You edit email text.',
       TRANSFORM[input.action],
       'Reply with the rewritten text only, in the same language, with no commentary.',
+      NO_EM_DASH,
       MAIL_IS_DATA
     ].join(' '),
     prompt: `<draft>\n${input.text.trim()}\n</draft>`,
@@ -86,5 +89,6 @@ export function writeRequest(input: WriteInput): AiRequest {
 
 export async function writeWithAi(ai: Ai, input: WriteInput): Promise<string> {
   const r = await ai.run('write', writeRequest(input))
-  return r.text.replace(/^\s*<draft>\s*/i, '').replace(/\s*<\/draft>\s*$/i, '').trim()
+  const text = r.text.replace(/^\s*<draft>\s*/i, '').replace(/\s*<\/draft>\s*$/i, '').trim()
+  return noEmDash(text, input.text)
 }

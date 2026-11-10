@@ -1,3 +1,4 @@
+import { categoryId } from './categories'
 /**
  * A fixed chip, or a label picked in the sidebar: `label:<name>` (Important,
  * an AI category or one of the inbox's own labels) or `gmail:<name>` (a label
@@ -28,7 +29,9 @@ function chipQuery(chip: ChipId | null): string {
   if (name === null) return CHIPS.find((c) => c.id === chip)?.query ?? ''
   if (chip!.startsWith('gmail:')) return `label:"${name}"`
   // Important is the classifier's verdict (and VIPs), not a category.
-  return name.toLowerCase() === 'important' ? 'is:important' : `ai:"${name}"`
+  if (name.toLowerCase() === 'important') return 'is:important'
+  // A category searches by its stored id; an own label by its name.
+  return `ai:"${categoryId(name) ?? name}"`
 }
 
 export function viewQuery(splitQuery: string, chip: ChipId | null): string {

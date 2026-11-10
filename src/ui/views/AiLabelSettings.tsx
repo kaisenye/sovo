@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import type { AccountSummary, AiLabel } from '../../../electron/preload'
 import { AI_CATEGORY_NAMES } from '../labelChips'
 
-/** The classifier's fixed categories, as the note names them. */
-const FIXED = `${AI_CATEGORY_NAMES.slice(0, -1).join(', ')} and ${AI_CATEGORY_NAMES.at(-1)}`
+/** The classifier's fixed categories, the first few by name (the sidebar lists them all). */
+const FIXED = `${AI_CATEGORY_NAMES.slice(0, 3).join(', ')} and friends`
 
 /** The Inbox split a label can add (Tab cycles splits); deleting the label removes it again. */
 const splitQuery = (name: string): string => `ai:"${name}"`
@@ -89,8 +89,8 @@ export function AiLabelSettings({ accounts, activeAccountId, classifyOn }: Props
     <div className="ai-labels">
       <h3>Labels</h3>
       <p className="settings-note">
-        New mail is sorted into {FIXED}. Add your own labels and Sovo files this inbox’s mail under them too; one message
-        can get several. {classifyOn ? '' : 'Turn on Sort new mail above to apply them.'}
+        Mail lands in {FIXED}. Add your own; one mail can wear a few.
+        {classifyOn ? '' : ' Turn on Sort new mail to use them.'}
       </p>
       {accounts.length > 1 && (
         <div className="sig-inboxes" role="tablist" aria-label="Inbox">
@@ -147,7 +147,7 @@ export function AiLabelSettings({ accounts, activeAccountId, classifyOn }: Props
         />
         <textarea
           aria-label="What mail belongs under this label"
-          placeholder="What belongs here, e.g. Mail from customers about orders, quotes or deliveries"
+          placeholder="What goes here, e.g. orders, quotes, deliveries"
           maxLength={500}
           rows={2}
           value={description}
@@ -155,9 +155,9 @@ export function AiLabelSettings({ accounts, activeAccountId, classifyOn }: Props
         />
         <div className="ai-label-actions">
           {editing == null && (
-            <label className="picker-check">
+            <label className="picker-check" title="Shows as a split in the Inbox (⇥ cycles splits)">
               <input type="checkbox" checked={asTab} onChange={(e) => setAsTab(e.target.checked)} />
-              Add as an Inbox split (⇥ cycles splits)
+              Inbox split
             </label>
           )}
           {editing != null && (

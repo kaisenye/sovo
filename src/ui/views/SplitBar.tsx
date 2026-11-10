@@ -11,6 +11,8 @@ interface Props {
   onChip: (id: ChipId) => void
   /** Back to everything: no chip, and the All split. */
   onClear: () => void
+  /** The select-all box, in the row checkboxes' column at the bar's start. */
+  lead?: React.ReactNode
 }
 
 /**
@@ -19,13 +21,14 @@ interface Props {
  * All (Tab cycles them) shows as an extra active pill so it is never hidden,
  * and so does a label picked in the sidebar.
  */
-export function SplitBar({ splits, activeSplit, chip, onChip, onClear }: Props) {
+export function SplitBar({ splits, activeSplit, chip, onChip, onClear, lead }: Props) {
   const split = splits?.find((s) => s.id === activeSplit && s.id !== 'all')
   const filtered = !!chip || !!split
   const label = chipLabel(chip)
 
   return (
     <div className="split-bar">
+      <span className="list-select-slot">{lead}</span>
       <button
         type="button"
         className="split-all"

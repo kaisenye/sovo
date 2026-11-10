@@ -5,7 +5,7 @@ import { join } from 'path'
 import { fakeAi } from '../services/ai/fake.js'
 import { closeDb, getDb, initDb } from '../store/db.js'
 import { upsertMessage } from '../store/repo.js'
-import { askMail, askTerms, hanGrams, retrieveForAsk, shortHan } from './ask.js'
+import { askMail, askTerms, citedNumbers, cleanAnswer, hanGrams, planAsk, retrieveForAsk, shortHan, spokenDate } from './ask.js'
 
 let uid = 0
 function add(account: number, thread: string, subject: string, body: string, date: number, from = 'Acme <acme@billing.test>') {
@@ -63,7 +63,7 @@ describe('Ask AI', () => {
     expect(r.sources).toHaveLength(1)
     expect(r.sources[0]).not.toHaveProperty('text')
     expect(ai.calls[0].feature).toBe('ask')
-    expect(ai.calls[0].req.prompt).toContain('Today is 2026-10-30')
+    expect(ai.calls[0].req.prompt).toContain('Today is Fri, Oct 30, 2026')
     expect(ai.calls[0].req.prompt).toContain('<message n="1"')
     expect(ai.calls[0].req.prompt).toContain('Question: When is the Acme invoice due?')
   })
@@ -107,15 +107,17 @@ describe('Ask AI', () => {
   it('finds Chinese mail for short keywords too short for a trigram window', async () => {
     add(2, 'fp', '十月账单', '请确认本月发票金额和付款时间', 4000, 'Tencent <bill@qq.test>')
     add(1, 'other', '会议纪要', '下周一上午十点开会。', 5000, 'Team <team@qq.test>')
+    // "Last month" (上个月) is a window now: the test mail is a few seconds into 1970, so "now" sits just after it.
+    const now = 10_000
     for (const q of ['发票', '发票 付款', '上个月的发票']) {
-      const hits = retrieveForAsk([1, 2], q)
+      const hits = retrieveForAsk([1, 2], q, 10, now)
       expect(hits.map((h) => [h.account_id, h.thread_id]), q).toEqual([[2, 'fp']])
-      expect(retrieveForAsk([1], q), q).toEqual([])
+      expect(retrieveForAsk([1], q, 10, now), q).toEqual([])
     }
     // Subject matches as well as body.
     expect(retrieveForAsk([1, 2], '账单').map((h) => h.thread_id)).toEqual(['fp'])
     const ai = fakeAi(() => '见 [1]。')
-    const r = await askMail(ai, [1, 2], '上个月的发票')
+    const r = await askMail(ai, [1, 2], '上个月的发票', now)
     expect(r.sources.map((s) => s.thread_id)).toEqual(['fp'])
     expect(ai.calls).toHaveLength(1)
   })
@@ -143,5 +145,45 @@ describe('Ask AI', () => {
     const r = await askMail(ai, [1, 2], 'kangaroo', Date.now())
     expect(r.sources).toEqual([])
     expect(ai.calls).toHaveLength(0)
+  })
+})
+
+describe('Ask AI, refined', () => {
+  const DAY = 86_400_000
+  const NOW = Date.UTC(2026, 10, 9, 18) // Mon, Nov 9 2026
+
+  it('reads a time window and the to-do intent from the question', () => {
+    expect(planAsk("what's recent todos", NOW)).toMatchObject({ todo: true, since: NOW - 14 * DAY, terms: [] })
+    expect(planAsk('what do I need to reply to this week?', NOW)).toMatchObject({ todo: true, since: NOW - 7 * DAY })
+    expect(planAsk('how much was my GoDaddy order?', NOW)).toMatchObject({ todo: false, since: null, terms: ['godaddy', 'order'] })
+    expect(planAsk('latest from Jerry Fannin', NOW)).toMatchObject({ recent: true, since: null, terms: ['jerry', 'fannin'] })
+    expect(planAsk('最近的待办', NOW)).toMatchObject({ todo: true, since: NOW - 14 * DAY })
+  })
+
+  it('answers a to-do question from recent mail you have not answered, not from a word match', () => {
+    getDb().prepare("UPDATE accounts SET email = 'me@x.test' WHERE id = 1").run()
+    add(1, 'old', 'todos list', 'my old todos', NOW - 400 * DAY, 'Bot <bot@x.test>')
+    add(1, 'ask', 'Can you send the quote?', 'Please send the signed quote by Friday.', NOW - 2 * DAY, 'Jerry <jerry@g11.test>')
+    add(1, 'done', 'Lunch?', 'Lunch Tuesday?', NOW - 3 * DAY, 'Ann <ann@x.test>')
+    add(1, 'done', 'Re: Lunch?', 'Tuesday works.', NOW - 2.5 * DAY, 'Me <me@x.test>')
+    const hits = retrieveForAsk([1], "what's recent todos", 10, NOW)
+    expect(hits[0].thread_id).toBe('ask')
+    expect(hits.map((h) => h.thread_id)).not.toContain('done')
+    expect(hits.map((h) => h.thread_id)).not.toContain('old')
+  })
+
+  it('puts the recent match ahead of an older one', () => {
+    add(1, 'o1', 'Thank you for your order', 'GoDaddy order total $20', NOW - 500 * DAY, 'GoDaddy <g@d.test>')
+    add(1, 'o2', 'Thank you for your order', 'GoDaddy order total $35', NOW - 2 * DAY, 'GoDaddy <g@d.test>')
+    expect(retrieveForAsk([1], 'GoDaddy order', 10, NOW)[0].thread_id).toBe('o2')
+  })
+
+  it('cleans the answer and lists only the sources it cites', async () => {
+    expect(cleanAnswer('**2026** — done\n\n\n1. one\n* two')).toBe('2026, done\n\n- one\n- two')
+    expect(citedNumbers('a [2], b [1, 3] and [2]')).toEqual([2, 1, 3])
+    expect(spokenDate(Date.UTC(2026, 10, 6, 18), NOW)).toBe('Fri, Nov 6')
+    expect(spokenDate(Date.UTC(2023, 7, 23, 18), NOW)).toBe('Wed, Aug 23, 2023')
+    const none = await askMail(fakeAi(() => 'Your mail does not say.'), [1, 2], 'Acme invoice', NOW)
+    expect(none.sources).toEqual([])
   })
 })

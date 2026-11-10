@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { asData, messageText, stripQuoted, transcript } from './mailText.js'
+import { asData, messageText, stripQuoted, transcript, noEmDash } from './mailText.js'
 
 describe('mail text for prompts', () => {
   it('drops quoted history and attribution lines', () => {
@@ -35,5 +35,25 @@ describe('mail text for prompts', () => {
     const capped = transcript([m(1000, 'a'.repeat(300)), m(2000, 'newest')], 200)
     expect(capped).toContain('newest')
     expect(capped).not.toContain('a'.repeat(300))
+  })
+})
+
+describe('noEmDash', () => {
+  it('turns em dashes into commas, wherever the model put them', () => {
+    expect(noEmDash('Yes — Friday works.')).toBe('Yes, Friday works.')
+    expect(noEmDash('Yes—Friday works.')).toBe('Yes, Friday works.')
+    expect(noEmDash('Sounds good — see you then — thanks!')).toBe('Sounds good, see you then, thanks!')
+    expect(noEmDash('Great, — thanks.')).toBe('Great, thanks.')
+    expect(noEmDash('Sure thing —.')).toBe('Sure thing.')
+    expect(noEmDash('— Kaisen')).toBe('Kaisen')
+  })
+
+  it('treats a spaced en dash as one, but keeps ranges', () => {
+    expect(noEmDash('Can do – tomorrow.')).toBe('Can do, tomorrow.')
+    expect(noEmDash('Open 9–5, pages 3–7.')).toBe('Open 9–5, pages 3–7.')
+  })
+
+  it('leaves the reply alone when the user writes em dashes themselves', () => {
+    expect(noEmDash('Fixed — as written.', 'Fixd — as writen.')).toBe('Fixed — as written.')
   })
 })

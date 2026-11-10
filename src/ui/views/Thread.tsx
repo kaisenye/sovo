@@ -13,13 +13,13 @@ import {
 } from 'lucide-react'
 import type { Attachment } from '../../../electron/preload'
 import type { Message } from '../../core/store/types'
-import { decodeEntities, formatDate, formatFullDate, recipientNames, senderLabel } from '../format'
+import { decodeEntities, formatFullDate, recipientNames, senderLabel } from '../format'
 import { replyPick, type ReplyPick } from '../aiInsights'
 import { useAiInsights } from '../hooks/useAiInsights'
 import { cycleIndex, openActiveTarget, stepIndex, toggleAllExpanded } from '../threadNav'
 import { previewKind } from './AttachmentPreview'
 import { MessageBody } from './MessageBody'
-import { ReplySuggestions, ThreadInsightsBar } from './ThreadInsights'
+import { ReplySuggestions, ThreadInsightsBar, ThreadSummaryLine } from './ThreadInsights'
 
 interface Props {
   threadId: string
@@ -242,6 +242,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
     )
 
   const subject = messages.find((m) => m.subject)?.subject ?? '(no subject)'
+  const summaryLine = ThreadSummaryLine({ insights: ai.insights, busy: ai.busy, note: ai.note })
   const [current, total] = position ? position.split(' / ') : [null, null]
 
   return (
@@ -252,9 +253,15 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
         <button className="thread-circle" onClick={onBack} aria-label="Back to list" title="Back (Esc)">
           <ArrowLeft size={16} strokeWidth={1.75} />
         </button>
-        <h2 className="thread-toolbar-subject" aria-hidden={!compact}>
-          {subject}
-        </h2>
+        {/* The subject slides up into the bar once the big title has
+            scrolled away; the summary shares the slot, alone and centred
+            until then, under the subject after. Transform and opacity only. */}
+        <div className="thread-toolbar-text" data-summary={!!summaryLine}>
+          <h2 className="thread-toolbar-subject" aria-hidden={!compact}>
+            {subject}
+          </h2>
+          {summaryLine}
+        </div>
         <div className="thread-toolbar-right">
           {position && (
             <>
@@ -290,7 +297,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
         </div>
       </header>
 
-      <ThreadInsightsBar insights={ai.insights} busy={ai.busy} error={ai.error} note={ai.note} />
+      <ThreadInsightsBar error={ai.error} />
 
       {edges.scrollable && (
         <div className="thread-jump" role="group" aria-label="Jump">
@@ -381,7 +388,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
                 ) : (
                   <span className="message-preview">{decodeEntities(m.snippet)}</span>
                 )}
-                <span className="message-date">{open ? formatFullDate(m.date) : formatDate(m.date)}</span>
+                <span className="message-date">{formatFullDate(m.date)}</span>
               </button>
               {open && (
                 <div className="message-card">

@@ -67,7 +67,7 @@ export function AiWriteMenu({ scope, busy, error, onRun, onClose, focusKey = 0 }
   }
 
   return (
-    <div className="ai-write" role="dialog" aria-label="Write with AI">
+    <div className="ai-write" role="dialog" aria-label="Write with AI" aria-busy={busy} data-busy={busy}>
       <input
         ref={inputRef}
         className="ai-write-input"
@@ -83,7 +83,7 @@ export function AiWriteMenu({ scope, busy, error, onRun, onClose, focusKey = 0 }
       />
       <ul className="ai-write-actions">
         {ACTIONS.map((a, i) => (
-          <li key={a.id}>
+          <li key={a.id} className="ai-rise" style={{ ['--i' as string]: i + 1 }}>
             <button
               type="button"
               data-active={i === active}
@@ -96,15 +96,17 @@ export function AiWriteMenu({ scope, busy, error, onRun, onClose, focusKey = 0 }
           </li>
         ))}
       </ul>
-      <p className="ai-write-note">
-        {busy
-          ? 'Writing…'
-          : scope === 'selection'
-            ? 'Replaces the selected text. ⌘Z undoes it.'
-            : 'Replaces your message above the signature. ⌘Z undoes it.'}
+      <p className="ai-write-note" aria-live="polite">
+        {busy ? (
+          <span className="ai-thinking">Writing…</span>
+        ) : scope === 'selection' ? (
+          'Replaces the selection. ⌘Z undoes it.'
+        ) : (
+          'Replaces your message above the signature. ⌘Z undoes it.'
+        )}
       </p>
       {error && (
-        <p className="ai-write-error" role="alert">
+        <p className="ai-write-error ai-rise" role="alert">
           {error}
         </p>
       )}

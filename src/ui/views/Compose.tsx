@@ -233,11 +233,22 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
         if (!r.ok) return setAiError(r.error)
         el.focus()
         const sel = window.getSelection()
+        const target = aiWriteRange(el, range)
+        // A live range at the start: it stays put while insertHTML replaces the text.
+        const start = target.cloneRange()
+        start.collapse(true)
         sel?.removeAllRanges()
-        sel?.addRange(aiWriteRange(el, range))
+        sel?.addRange(target)
         // insertHTML keeps the change on the editor's undo stack: ⌘Z takes it back.
         document.execCommand('insertHTML', false, textToHtml(r.text))
         updateCompose({ body: el.innerHTML })
+        const end = sel?.rangeCount ? sel.getRangeAt(0) : null
+        if (end) {
+          const written = document.createRange()
+          written.setStart(start.startContainer, start.startOffset)
+          written.setEnd(end.endContainer, end.endOffset)
+          glowWritten(written)
+        }
         setAiOpen(false)
       } finally {
         if (current()) setAiBusy(false)
@@ -758,4 +769,23 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
       </div>
     </div>
   )
+}
+
+/**
+ * Lights up the text Write with AI just wrote, then lets it fade: three
+ * steps of a CSS highlight, so the draft's HTML is never touched.
+ */
+function glowWritten(range: Range): void {
+  const reg = typeof CSS !== 'undefined' ? CSS.highlights : undefined
+  if (!reg || typeof Highlight === 'undefined' || range.collapsed) return
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+  const names = ['ai-written-1', 'ai-written-2', 'ai-written-3']
+  names.forEach((n) => reg.delete(n))
+  names.forEach((n, i) =>
+    setTimeout(() => {
+      if (i > 0) reg.delete(names[i - 1])
+      reg.set(n, new Highlight(range))
+    }, i === 0 ? 0 : 500 + i * 160)
+  )
+  setTimeout(() => reg.delete(names[2]), 500 + 3 * 160)
 }

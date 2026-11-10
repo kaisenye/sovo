@@ -49,7 +49,7 @@ describe('Done in the Reminders view', () => {
     expect(b).toContain('window.api.clearReminders(ids)')
     expect(b).toContain('window.api.restoreReminders(res.cleared)')
     expect(b).not.toContain('moveMessages')
-    expect(body('doneSelected')).toContain("doneAction(useStore.getState().activeFolderId, REMINDERS_VIEW_ID) === 'dismissReminder'")
+    expect(body('doneSelected')).toContain("doneAction(fid, REMINDERS_VIEW_ID) === 'dismissReminder'")
   })
 
   it('Send + Done from Reminders dismisses the reminder too, under the one send undo', () => {

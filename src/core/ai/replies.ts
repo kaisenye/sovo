@@ -5,7 +5,7 @@ import { getReplyOptions, saveReplyOptions } from '../store/ai.js'
 import { getDb } from '../store/db.js'
 import { getMessage, getSettings, getThread } from '../store/repo.js'
 import { historySection, pastThreads } from './history.js'
-import { MAIL_IS_DATA, transcript } from './mailText.js'
+import { MAIL_IS_DATA, NO_EM_DASH, noEmDash, transcript } from './mailText.js'
 
 export const REPLIES_SCHEMA = {
   name: 'replies',
@@ -25,6 +25,7 @@ export function repliesRequest(i: { thread: string; me: string; myName: string |
       'Make them meaningfully different: for example yes, no or not now, and a question back.',
       'When earlier conversations with this person are given, match how the user writes to them and stay consistent with what was said there.',
       'No greeting placeholders like [Name], no signature.',
+      NO_EM_DASH,
       MAIL_IS_DATA
     ].join(' '),
     prompt: [historySection(i.history), `The conversation, oldest first:\n${i.thread}`].filter(Boolean).join('\n\n'),
@@ -37,7 +38,7 @@ export function parseReplyOptions(text: string): string[] {
   const o = parseJsonReply(text)
   const options = (Array.isArray(o.options) ? o.options : [])
     .filter((x): x is string => typeof x === 'string')
-    .map((x) => x.trim().slice(0, 400))
+    .map((x) => noEmDash(x.trim()).slice(0, 400))
     .filter(Boolean)
     .slice(0, 3)
   if (!options.length) throw new AiError('bad-output', 'The model suggested no replies')
@@ -49,7 +50,8 @@ export async function suggestReplies(ai: Ai, messageRowId: number, opts: { backg
   const m = getMessage(messageRowId)
   if (!m?.message_id) throw new AiError('invalid', 'This message cannot get suggestions')
   const cached = getReplyOptions(m.account_id, m.message_id)
-  if (cached) return cached
+  // Cached before the no-em-dash rule, possibly.
+  if (cached) return cached.map((o) => noEmDash(o))
   // The message and up to five before it; later replies are not what it answers.
   const msgs = m.thread_id
     ? getThread(m.account_id, m.thread_id)
