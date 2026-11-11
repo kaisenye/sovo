@@ -1,11 +1,13 @@
-"""frame.py <in.png> <out-dir> <window-points-width> [width] [frames] [backdrop-image]
+"""frame.py <capture> <out-dir> <window-points-width> [width] [frames] [backdrop-image]
 
-Puts a window capture on a backdrop with rounded corners and macOS traffic
-lights (the capture has no title bar; the app uses hiddenInset). With a
-backdrop image: one still, the photo cover-fit behind a drop shadow. Without:
-a slowly moving black-and-white gradient with a soft glow, written as
-<out-dir>/0000.png… (one seamless loop, for img2webp). Always writes
-<out-dir>/still.jpg."""
+Puts the app window on a backdrop: rounded corners, a shadow or glow, and
+macOS traffic lights (captures have no title bar; the app uses hiddenInset).
+
+<capture> is one PNG (a still) or a directory of frames (a recording, already
+at a steady frame rate). The backdrop is a photo when one is given, else a
+slowly moving black-and-white gradient. Writes <out-dir>/0000.png… for
+img2webp (one per recording frame; for a still on the gradient, `frames`
+frames of one seamless loop) and <out-dir>/still.jpg (the last frame)."""
 import math
 import os
 import sys
@@ -16,37 +18,40 @@ from PIL import Image, ImageDraw, ImageFilter
 src, out_dir = sys.argv[1], sys.argv[2]
 points = int(sys.argv[3])
 width = int(sys.argv[4]) if len(sys.argv) > 4 else 1600
-n_frames = int(sys.argv[5]) if len(sys.argv) > 5 else 60
+loop_frames = int(sys.argv[5]) if len(sys.argv) > 5 else 60
 photo = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else None
 os.makedirs(out_dir, exist_ok=True)
 
-# Window at output scale.
-cap = Image.open(src).convert('RGB')
+captures = ([os.path.join(src, f) for f in sorted(os.listdir(src)) if f.endswith(('.jpg', '.png'))]
+            if os.path.isdir(src) else [src])
+first = Image.open(captures[0])
 win_w = round(width * 0.86)
-k = win_w / cap.width
-win = cap.resize((win_w, round(cap.height * k)), Image.LANCZOS)
-W, H = win.size
-s = cap.width / points * k  # output pixels per window point
-
-d = ImageDraw.Draw(win)
-for i, c in enumerate([(255, 95, 87), (254, 188, 46), (40, 200, 64)]):
-    cx, cy, rad = (26 + i * 20) * s, 20 * s, 6 * s
-    d.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=c)
+k = win_w / first.width
+W, H = win_w, round(first.height * k)
+s = first.width / points * k  # output pixels per window point
 
 pad_x = (width - W) // 2
 pad_top = round(width * 0.05)
 BW, BH = width, H + pad_top + round(width * 0.065)
-
 r = round(10 * s)
 mask = Image.new('L', (W, H), 0)
 ImageDraw.Draw(mask).rounded_rectangle((0, 0, W - 1, H - 1), r, fill=255)
 
-# A faint light glow around the window so it lifts off the dark backdrop.
+
+def window(path):
+    win = Image.open(path).convert('RGB').resize((W, H), Image.LANCZOS)
+    d = ImageDraw.Draw(win)
+    for i, c in enumerate([(255, 95, 87), (254, 188, 46), (40, 200, 64)]):
+        cx, cy, rad = (26 + i * 20) * s, 20 * s, 6 * s
+        d.ellipse((cx - rad, cy - rad, cx + rad, cy + rad), fill=c)
+    return win
+
+
+# Gradient backdrop: soft white lights drifting over black, computed small and
+# scaled up, with a faint glow so the window lifts off it.
 glow = Image.new('L', (BW, BH), 0)
 ImageDraw.Draw(glow).rounded_rectangle((pad_x, pad_top, pad_x + W, pad_top + H), r, fill=255)
 glow = np.asarray(glow.filter(ImageFilter.GaussianBlur(round(40 * s))), np.float32) / 255 * 0.10
-
-# Backdrop: soft white lights drifting over black, computed small and scaled up.
 SW, SH = 240, round(240 * BH / BW)
 yy, xx = np.mgrid[0:SH, 0:SW].astype(np.float32)
 xx /= SW
@@ -58,7 +63,7 @@ def light(cx, cy, radius, power):
     return power * np.exp(-d2 / (2 * radius ** 2))
 
 
-def backdrop(t):
+def gradient(t):
     a = 2 * math.pi * t
     h = SH / SW
     # Three lights on looping paths; each also breathes, out of step with the others.
@@ -76,8 +81,8 @@ def photo_backdrop():
     """The photo scaled to cover, blurred a touch (hides compression blocks),
     with a soft dark shadow under the window."""
     im = Image.open(photo).convert('RGB')
-    k = max(BW / im.width, BH / im.height)
-    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    f = max(BW / im.width, BH / im.height)
+    im = im.resize((round(im.width * f), round(im.height * f)), Image.LANCZOS)
     x, y = (im.width - BW) // 2, (im.height - BH) // 2
     bg = im.crop((x, y, x + BW, y + BH)).filter(ImageFilter.GaussianBlur(round(6 * s)))
     sh = Image.new('L', (BW, BH), 0)
@@ -87,16 +92,28 @@ def photo_backdrop():
     return Image.composite(Image.new('RGB', (BW, BH), (14, 18, 40)), bg, sh)
 
 
-def frame(t):
-    bg = photo_backdrop() if photo else backdrop(t)
+still_bg = photo_backdrop() if photo else None
+
+
+def frame(win, t):
+    bg = still_bg.copy() if still_bg else gradient(t)
     bg.paste(win, (pad_x, pad_top), mask)
     ImageDraw.Draw(bg).rounded_rectangle((pad_x, pad_top, pad_x + W - 1, pad_top + H - 1), r,
                                          outline=(78, 78, 84), width=max(1, round(s * 0.5)))
     return bg
 
 
-if not photo:
-    for i in range(n_frames):
-        frame(i / n_frames).save(os.path.join(out_dir, f'{i:04d}.png'))
-frame(0).save(os.path.join(out_dir, 'still.jpg'), quality=90)
-print('still' if photo else f'{n_frames} frames', BW, 'x', BH)
+if len(captures) > 1:
+    n = len(captures)
+    for i, path in enumerate(captures):
+        img = frame(window(path), i / n)
+        img.save(os.path.join(out_dir, f'{i:04d}.png'))
+elif not photo:
+    win = window(captures[0])
+    for i in range(loop_frames):
+        img = frame(win, i / loop_frames)
+        img.save(os.path.join(out_dir, f'{i:04d}.png'))
+else:
+    img = frame(window(captures[0]), 0)
+img.save(os.path.join(out_dir, 'still.jpg'), quality=90)
+print(len(captures) if len(captures) > 1 else 'still', 'frames', BW, 'x', BH)

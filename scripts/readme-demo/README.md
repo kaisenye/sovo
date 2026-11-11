@@ -7,7 +7,7 @@ own data, and a local stand-in for DeepSeek, so no AI provider is called.
 ## Needs
 
 macOS with `ffmpeg`, `img2webp` (`brew install ffmpeg webp`), `sqlite3`,
-`python3`, and the repo's `pnpm install`.
+`python3` with Pillow and numpy (`pip install pillow numpy`), and the repo's `pnpm install`.
 
 ## Re-record
 
@@ -33,16 +33,16 @@ keystrokes with a keycap overlay, and writes `<scene>.webp` plus a
 | `rec.cjs` | Recording driver: screencast, keycaps, `press` / `type` / `waitFor` helpers |
 | `scenes/*.cjs` | One script per clip; `setup.cjs` sets the fake AI key |
 | `encode.sh` | Frames to a 15 fps, 1600 px looping WebP and poster |
-| `frame.py` | Puts the hero capture on a backdrop: a photo, or a looping black-and-white gradient |
+| `frame.py` | Frames the hero on a backdrop: a photo, or a moving black-and-white gradient |
 
 The demo profile and frames live in `$TMPDIR/sovo-readme-demo`
 (`SOVO_DEMO_WORK` to move it). Delete that folder to start from a new profile.
 `SOVO_DEMO_ASSETS` writes the results somewhere other than `docs/assets/readme`.
 
-The README hero sits on a licensed stock photo that is not in the repo. To
-rebuild it, pass the image: `SOVO_DEMO_BACKDROP=~/path/to/photo.avif record.sh hero`.
-Without it the hero gets an animated black-and-white gradient (`hero.webp`);
-then point the README's hero back at that file.
+The README hero is a short tour recorded like the other clips, then framed on
+a backdrop by `frame.py`: a licensed stock photo that is not in the repo, so
+pass it when re-recording: `SOVO_DEMO_BACKDROP=~/path/to/photo.jpg record.sh hero`.
+Without it the hero gets an animated black-and-white gradient instead.
 
 To add a clip, copy a scene, record it, and add a row to the Features table in
 the top-level README.

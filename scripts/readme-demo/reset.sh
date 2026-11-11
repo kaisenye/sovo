@@ -17,7 +17,7 @@ if ! sqlite3 $DB 'SELECT 1 FROM folders WHERE account_id = 1' 2>/dev/null | grep
   sqlite3 $DB < $HERE/bootstrap.sql
 fi
 
-python3 $HERE/seed.py $WORK/seed.sql >/dev/null
+$PY $HERE/seed.py $WORK/seed.sql >/dev/null
 sqlite3 $DB <<SQL
 DELETE FROM messages; DELETE FROM list_rows; DELETE FROM list_dirty; DELETE FROM ai_classifications; DELETE FROM reply_options;
 DELETE FROM ai_jobs; DELETE FROM outbox; DELETE FROM move_jobs; DELETE FROM reminders; DELETE FROM mutes; DELETE FROM replied_senders;

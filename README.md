@@ -17,7 +17,7 @@
 <h3 align="center"><a href="https://sovomail.xyz"><ins>Get Sovo at sovomail.xyz</ins></a></h3>
 
 <p align="center">
-  <img src="docs/assets/readme/hero.jpg" alt="The Sovo inbox in dark mode, with mail grouped by day and Important, Work and Billing labels" width="960" />
+  <picture><source srcset="docs/assets/readme/hero.webp" type="image/webp"><img src="docs/assets/readme/hero.poster.jpg" alt="A tour of Sovo: moving down the Inbox, opening a thread with suggested replies, then asking what needs doing this week" width="960" /></picture>
 </p>
 
 <p align="center">

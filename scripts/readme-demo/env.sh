@@ -10,6 +10,13 @@ AI_PORT=4011
 DEMO_W=1152
 DEMO_H=720
 PROFILE=$WORK/profile
+# The first python3 on PATH with Pillow and numpy (frame.py needs both).
+PY=${SOVO_DEMO_PYTHON:-}
+if [[ -z $PY ]]; then
+  for p in $(whence -ap python3); do
+    $p -c 'import PIL, numpy' 2>/dev/null && { PY=$p; break }
+  done
+fi
 DB=$PROFILE/sovo.db
 mkdir -p $WORK
 
