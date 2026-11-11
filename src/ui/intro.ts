@@ -82,6 +82,33 @@ export function replyAllCc(
   return out.join(', ')
 }
 
+/**
+ * Who a reply goes to. Normally the sender, plus (reply all) everyone else on
+ * To and Cc. When the message is one you sent yourself, the reply follows up
+ * with the people you wrote to, as Gmail does: To keeps the original To, and
+ * reply all keeps the original Cc. `mine` is every address of yours.
+ */
+export function replyRecipients(
+  msg: { from_addr: string | null; from_name: string | null; to_addrs: string | null; cc_addrs: string | null },
+  mine: (string | null | undefined)[],
+  all: boolean
+): { to: string; cc: string } {
+  const own = new Set(mine.filter((x): x is string => !!x).map((x) => x.trim().toLowerCase()))
+  const from = (msg.from_addr ?? '').trim()
+  if (from && own.has(from.toLowerCase())) {
+    const to = replyAllCc(msg.to_addrs, null, [...own])
+    // Mail you sent only to yourself has no one else to follow up with.
+    if (to) {
+      const cc = all ? replyAllCc(null, msg.cc_addrs, [...own, ...parseAddrColumn(msg.to_addrs).map((a) => a.address)]) : ''
+      return { to, cc }
+    }
+  }
+  return {
+    to: namedAddress(msg.from_name, from),
+    cc: all ? replyAllCc(msg.to_addrs, msg.cc_addrs, [...own, from]) : ''
+  }
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }

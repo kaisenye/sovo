@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatDate, formatFullDate, recipientLabel, recipientNames, senderLabel } from './format.js'
+import { formatDate, formatFullDate, recipientLabel, senderLabel } from './format.js'
 
 describe('recipientLabel', () => {
   it('falls back to the sender when the column was never selected', () => {
@@ -54,12 +54,5 @@ describe('thread header text', () => {
     expect(formatFullDate(at(2026, 9, 22, 9, 0))).toMatch(/^Oct 22nd, 9:00\sAM$/)
     expect(formatFullDate(at(2026, 9, 11, 9, 0))).toMatch(/^Oct 11th/)
     expect(formatFullDate(null)).toBe('')
-  })
-
-  it('lists every recipient by name, falling back to the address', () => {
-    const to = JSON.stringify([{ name: 'Kaisen Ye', address: 'k@x.com' }, { name: null, address: 'bob@y.com' }])
-    expect(recipientNames(to, JSON.stringify([{ name: 'Ann', address: 'a@z.com' }]))).toBe('Kaisen Ye, bob@y.com, Ann')
-    expect(recipientNames(null, null)).toBe('')
-    expect(recipientNames('not json', null)).toBe('')
   })
 })

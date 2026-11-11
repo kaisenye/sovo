@@ -13,7 +13,9 @@ import {
 } from 'lucide-react'
 import type { Attachment } from '../../../electron/preload'
 import type { Message } from '../../core/store/types'
-import { decodeEntities, formatFullDate, recipientNames, senderLabel } from '../format'
+import { decodeEntities, formatFullDate, senderLabel } from '../format'
+import { parseAddrColumn } from '../intro'
+import { ContactPill } from './ContactPill'
 import { replyPick, type ReplyPick } from '../aiInsights'
 import { useAiInsights } from '../hooks/useAiInsights'
 import { cycleIndex, openActiveTarget, stepIndex, toggleAllExpanded } from '../threadNav'
@@ -61,6 +63,25 @@ export interface ThreadHandle {
   summarize(): void
   /** Instant Reply `i` (0-based) with the message it answers, or null when there is none. */
   replyOption(i: number): ReplyPick | null
+}
+
+/** An open message's To and Cc, as pills with the contact card on hover. */
+function MessageRecipients({ to, cc }: { to: string | null; cc: string | null }) {
+  const toList = parseAddrColumn(to)
+  const ccList = parseAddrColumn(cc)
+  if (!toList.length && !ccList.length) return null
+  return (
+    <div className="message-to">
+      {toList.length > 0 && <span>To:</span>}
+      {toList.map((a, i) => (
+        <ContactPill key={`to-${a.address}-${i}`} entry={a.entry} />
+      ))}
+      {ccList.length > 0 && <span className="message-to-cc">Cc:</span>}
+      {ccList.map((a, i) => (
+        <ContactPill key={`cc-${a.address}-${i}`} entry={a.entry} />
+      ))}
+    </div>
+  )
 }
 
 export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
@@ -392,11 +413,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
               </button>
               {open && (
                 <div className="message-card">
-                  {recipientNames(m.to_addrs, m.cc_addrs) && (
-                    <div className="message-to">
-                      <span>To:</span> {recipientNames(m.to_addrs, m.cc_addrs)}
-                    </div>
-                  )}
+                  <MessageRecipients to={m.to_addrs} cc={m.cc_addrs} />
                   <MessageBody
                     messageId={m.id}
                     activeLink={i === focused ? activeLink : null}

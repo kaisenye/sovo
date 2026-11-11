@@ -53,6 +53,11 @@ describe('noEmDash', () => {
     expect(noEmDash('Open 9–5, pages 3–7.')).toBe('Open 9–5, pages 3–7.')
   })
 
+  it('keeps a comma that ends a line, like a greeting', () => {
+    expect(noEmDash('Hi Hana,\n\nSorry for the trouble.')).toBe('Hi Hana,\n\nSorry for the trouble.')
+    expect(noEmDash('Thanks —\nMaya')).toBe('Thanks\nMaya')
+  })
+
   it('leaves the reply alone when the user writes em dashes themselves', () => {
     expect(noEmDash('Fixed — as written.', 'Fixd — as writen.')).toBe('Fixed — as written.')
   })

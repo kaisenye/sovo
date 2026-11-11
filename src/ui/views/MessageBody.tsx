@@ -219,8 +219,8 @@ function buildDoc(
   const css = `
     html,body { margin:0; padding:0; background:transparent; overflow:hidden; }
     body {
-      font-family: 'Inter', -apple-system, sans-serif;
-      font-size: 13.5px; line-height: 1.55; color: ${fg};
+      font-family: sans-serif;
+      font-size: 12px; line-height: 1.5; color: ${fg};
       word-wrap: break-word; overflow-wrap: anywhere;
     }
     img { max-width: 100%; height: auto; }

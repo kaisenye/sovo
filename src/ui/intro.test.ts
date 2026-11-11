@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { instantIntro, namedAddress, replyAllCc } from './intro.js'
+import { instantIntro, namedAddress, replyAllCc, replyRecipients } from './intro.js'
 
 describe('instantIntro', () => {
   it('moves the introducer to Bcc and writes to the person introduced', () => {
@@ -96,5 +96,42 @@ describe('replyAllCc', () => {
   it('is empty when nobody else is on the mail', () => {
     expect(replyAllCc(JSON.stringify([{ address: 'me@corp.test' }]), null, ['me@corp.test'])).toBe('')
     expect(replyAllCc(null, '', [])).toBe('')
+  })
+})
+
+describe('replyRecipients', () => {
+  const me = ['kaisen@hippsc.com', 'k@gmail.test']
+  const json = (...a: [string, string | null][]) => JSON.stringify(a.map(([address, name]) => ({ address, name })))
+
+  it('replies to the sender, and reply all adds the rest without me', () => {
+    const msg = {
+      from_addr: 'ann@x.test',
+      from_name: 'Ann',
+      to_addrs: json(['kaisen@hippsc.com', 'Kaisen'], ['bob@y.test', 'Bob']),
+      cc_addrs: json(['carl@z.test', null])
+    }
+    expect(replyRecipients(msg, me, false)).toEqual({ to: 'Ann <ann@x.test>', cc: '' })
+    expect(replyRecipients(msg, me, true)).toEqual({ to: 'Ann <ann@x.test>', cc: 'Bob <bob@y.test>, carl@z.test' })
+  })
+
+  it('follows up my own sent mail with the people I wrote to', () => {
+    const msg = {
+      from_addr: 'Kaisen@HIPPSC.com',
+      from_name: 'Kaisen Ye',
+      to_addrs: json(['ann@x.test', 'Ann'], ['bob@y.test', null]),
+      cc_addrs: json(['carl@z.test', 'Carl'], ['k@gmail.test', null], ['ann@x.test', 'Ann'])
+    }
+    expect(replyRecipients(msg, me, false)).toEqual({ to: 'Ann <ann@x.test>, bob@y.test', cc: '' })
+    expect(replyRecipients(msg, me, true)).toEqual({ to: 'Ann <ann@x.test>, bob@y.test', cc: 'Carl <carl@z.test>' })
+  })
+
+  it('reads a local draft-style plain address list', () => {
+    const msg = { from_addr: 'k@gmail.test', from_name: null, to_addrs: 'Ann <ann@x.test>; bob@y.test', cc_addrs: null }
+    expect(replyRecipients(msg, me, false).to).toBe('Ann <ann@x.test>, bob@y.test')
+  })
+
+  it('mail I sent only to myself replies to me', () => {
+    const msg = { from_addr: 'kaisen@hippsc.com', from_name: 'Kaisen Ye', to_addrs: json(['kaisen@hippsc.com', null]), cc_addrs: null }
+    expect(replyRecipients(msg, me, false).to).toBe('Kaisen Ye <kaisen@hippsc.com>')
   })
 })

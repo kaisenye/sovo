@@ -61,7 +61,7 @@ import { dayKey, isInboxZero, nextStreak } from './streak'
 import type { FolderRole, MoveTarget } from '../core/store/folderRoles'
 import { buildForwardBody, buildReplyBody, signatureBlock } from './quote'
 import { textToHtml } from './aiText'
-import { namedAddress, replyAllCc } from './intro'
+import { replyRecipients } from './intro'
 import { applyTheme, isTheme, type Theme } from './theme'
 import { syncBar, trackSync, type SyncCounts } from './syncBar'
 import { composeInline as isInlineCompose } from './composePlace'
@@ -1387,8 +1387,10 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   const startCompose = useCallback(() => {
     // A new message sends from the active inbox, so it carries that signature.
     const signature = signatureFor(activeAccountId)
-    const body = '<p><br></p>'
-    openCompose({ ...emptyCompose(), body: signature ? `${body}<p><br></p>${signatureBlock(signature)}` : body })
+    // A line to type on, one blank line, then the signature. Divs, not <p>s:
+    // a <p>'s margins would open a gap above the first line.
+    const body = '<div><br></div>'
+    openCompose({ ...emptyCompose(), body: signature ? `${body}<div><br></div>${signatureBlock(signature)}` : body })
   }, [openCompose, signatureFor, activeAccountId])
 
   const startReply = useCallback(
@@ -1399,12 +1401,10 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       const sourceId = replySourceId(ot.messageId, prefill)
       const msg = await window.api.getMessage(sourceId)
       if (!msg) return
-      // Reply all leaves out the address that received the mail, which for a
-      // search result need not be the active account's.
-      const me = accounts.find((a) => a.accountId === msg.account_id)?.email ?? activeEmail
-      const from = msg.from_addr ?? ''
-      const to = namedAddress(msg.from_name, from)
-      const cc = all ? replyAllCc(msg.to_addrs, msg.cc_addrs, [me, from]) : ''
+      // Every inbox's address counts as yours: a reply never goes back to you,
+      // and replying to your own sent mail goes to the people you wrote to.
+      const mine = [activeEmail, ...accounts.map((a) => a.email)]
+      const { to, cc } = replyRecipients(msg, mine, all)
       openCompose({
         ...emptyCompose(),
         mode: all ? 'replyAll' : 'reply',
@@ -1415,7 +1415,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
         references: [msg.in_reply_to, msg.message_id].filter(Boolean).join(' ') || null,
         // An Instant Reply fills the line you would type on.
         body: (() => {
-          const top = prefill ? textToHtml(prefill.text) : '<p><br></p>'
+          const top = prefill ? textToHtml(prefill.text) : '<div><br></div>'
           // The reply goes out from the inbox that received the mail.
           const signature = signatureFor(msg.account_id)
           if (signature) return `${top}${signatureBlock(signature)}${buildReplyBody(msg)}`
@@ -1442,7 +1442,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       // A forward starts a new conversation for the recipient, so it carries
       // no In-Reply-To/References — threading it into the original would be wrong.
       body: signature
-        ? `<p><br></p>${signatureBlock(signature)}${buildForwardBody(msg)}`
+        ? `<div><br></div>${signatureBlock(signature)}${buildForwardBody(msg)}`
         : buildForwardBody(msg),
       accountId: msg.account_id,
       sourceMessageId: ot.messageId,

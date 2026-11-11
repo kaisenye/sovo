@@ -49,6 +49,25 @@ function newlinesToBreaks(doc: Document): void {
   }
 }
 
+const BLOCK_TAGS = new Set(['BLOCKQUOTE', 'DIV', 'LI', 'OL', 'P', 'PRE', 'UL', 'TABLE', 'TR', 'TD', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'HR'])
+
+/**
+ * Source indentation between blocks ("<div>    <div>Kai</div>") never shows
+ * in mail, but the compose editor is pre-wrap, where it becomes a blank line,
+ * and newlinesToBreaks would turn it into <br>s. Drop it first.
+ */
+function dropBlockWhitespace(doc: Document): void {
+  const walker = doc.createTreeWalker(doc.body, 4 /* SHOW_TEXT */)
+  const blank: Text[] = []
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (/\S/.test(n.nodeValue ?? '') || /\u00a0/.test(n.nodeValue ?? '')) continue
+    if (n.parentElement?.closest('pre')) continue
+    const isBlock = (x: Node | null): boolean => x?.nodeType === 1 && BLOCK_TAGS.has((x as Element).tagName)
+    if (isBlock(n.previousSibling) || isBlock(n.nextSibling)) blank.push(n as Text)
+  }
+  for (const t of blank) t.remove()
+}
+
 /**
  * Compose-only markers: where the signature and the quoted original start.
  * supermail-* is the pre-rename spelling, still on drafts saved before it.
@@ -78,6 +97,7 @@ export function cleanPastedHtml(
   doc.querySelectorAll('script,style,meta,link,iframe,object,embed,form').forEach((n) =>
     n.remove()
   )
+  dropBlockWhitespace(doc)
   newlinesToBreaks(doc)
   const walk = (node: Element): void => {
     for (const child of [...node.children]) {

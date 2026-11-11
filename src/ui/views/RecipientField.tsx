@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { ContactPill } from './ContactPill'
+import { addEntries, joinEntries, readLine, splitEntries } from '../recipients'
 
 interface Contact {
   address: string
@@ -14,23 +16,25 @@ interface Props {
   inputId?: string
 }
 
-/** Only the address being typed is completed; earlier ones are left alone. */
-function splitTail(value: string): { head: string; tail: string } {
-  const i = Math.max(value.lastIndexOf(','), value.lastIndexOf(';'))
-  return i === -1
-    ? { head: '', tail: value }
-    : { head: value.slice(0, i + 1), tail: value.slice(i + 1) }
-}
-
 function formatContact(c: Contact): string {
   return c.name ? `${c.name} <${c.address}>` : c.address
 }
 
+/**
+ * A recipient line: finished addresses as pills, then the one being typed.
+ * ↵, Tab, comma or leaving the field turns the typed text into a pill;
+ * ⌫ in an empty field removes the last pill whole; double-click a pill to edit it.
+ * Hovering a pill shows its full name and address, ready to copy.
+ * The value stays the plain "a, b" string compose stores and sends.
+ */
 export function RecipientField({ label, value, onChange, autoFocus, inputId }: Props) {
+  const [typed, setTyped] = useState('')
+  const { pills, draft } = readLine(value, typed)
   const [matches, setMatches] = useState<Contact[]>([])
   const [active, setActive] = useState(0)
   const [open, setOpen] = useState(false)
   const boxRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const close = useCallback(() => {
     setOpen(false)
@@ -38,18 +42,32 @@ export function RecipientField({ label, value, onChange, autoFocus, inputId }: P
     setActive(0)
   }, [])
 
+  const emit = useCallback(
+    (nextPills: string[], nextDraft: string) => {
+      setTyped(nextDraft)
+      onChange(joinEntries(nextPills, nextDraft))
+    },
+    [onChange]
+  )
+
+  /** The typed text becomes a pill (or pills, for a pasted list). */
+  const commit = useCallback(() => {
+    if (!draft.trim()) return
+    emit(addEntries(pills, splitEntries(draft)), '')
+    close()
+  }, [draft, pills, emit, close])
+
   // Debounced: a query per keystroke would thrash the main process.
   useEffect(() => {
     if (!open) return
-    const tail = splitTail(value).tail.trim()
-    // A completed "Name <addr>" needs no further lookup.
-    if (tail.length < 2 || tail.endsWith('>')) {
+    const q = draft.trim()
+    if (q.length < 2) {
       setMatches([])
       return
     }
     let cancelled = false
     const t = setTimeout(() => {
-      void window.api.searchContacts(tail, 6).then((r) => {
+      void window.api.searchContacts(q, 6).then((r) => {
         if (cancelled) return
         setMatches(r)
         setActive(0)
@@ -59,7 +77,7 @@ export function RecipientField({ label, value, onChange, autoFocus, inputId }: P
       cancelled = true
       clearTimeout(t)
     }
-  }, [value, open])
+  }, [draft, open])
 
   useEffect(() => {
     const onDown = (e: MouseEvent): void => {
@@ -71,27 +89,36 @@ export function RecipientField({ label, value, onChange, autoFocus, inputId }: P
 
   const choose = useCallback(
     (c: Contact) => {
-      const { head } = splitTail(value)
-      onChange(`${head}${head ? ' ' : ''}${formatContact(c)}, `)
+      emit(addEntries(pills, [formatContact(c)]), '')
       close()
     },
-    [value, onChange, close]
+    [pills, emit, close]
   )
 
+  const remove = (i: number): void => emit(pills.filter((_, j) => j !== i), draft)
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (!matches.length) return
-    if (e.key === 'ArrowDown') {
+    if (e.nativeEvent.isComposing) return
+    const menu = open && matches.length > 0
+    if (menu && e.key === 'ArrowDown') {
       e.preventDefault()
       setActive((i) => (i + 1) % matches.length)
-    } else if (e.key === 'ArrowUp') {
+    } else if (menu && e.key === 'ArrowUp') {
       e.preventDefault()
       setActive((i) => (i - 1 + matches.length) % matches.length)
-    } else if (e.key === 'Enter' || e.key === 'Tab') {
-      // Only claim the key when a suggestion is genuinely highlighted, so
-      // Enter/Tab keep working normally in an empty or completed field.
+    } else if (menu && (e.key === 'Enter' || e.key === 'Tab')) {
       e.preventDefault()
       choose(matches[active])
-    } else if (e.key === 'Escape') {
+    } else if (e.key === 'Enter' && draft.trim()) {
+      e.preventDefault()
+      commit()
+    } else if (e.key === 'Tab' && draft.trim()) {
+      // Pill it and let focus move on.
+      commit()
+    } else if (e.key === 'Backspace' && !draft && pills.length && e.currentTarget.selectionStart === 0) {
+      e.preventDefault()
+      remove(pills.length - 1)
+    } else if (menu && e.key === 'Escape') {
       e.preventDefault()
       e.stopPropagation()
       close()
@@ -101,18 +128,47 @@ export function RecipientField({ label, value, onChange, autoFocus, inputId }: P
   return (
     <div className="compose-field" ref={boxRef}>
       <span>{label}</span>
-      <div className="recipient-wrap">
+      <div
+        className="recipient-wrap"
+        onMouseDown={(e) => {
+          // A click on the empty part of the line goes to the input.
+          if (e.target === e.currentTarget) {
+            e.preventDefault()
+            inputRef.current?.focus()
+          }
+        }}
+      >
+        {pills.map((entry, i) => (
+          <ContactPill
+            key={`${entry}-${i}`}
+            entry={entry}
+            onRemove={() => remove(i)}
+            onEdit={() => {
+              emit(pills.filter((_, j) => j !== i), entry)
+              inputRef.current?.focus()
+            }}
+          />
+        ))}
         <input
+          ref={inputRef}
           id={inputId}
-          value={value}
+          value={draft}
           autoFocus={autoFocus}
           autoComplete="off"
           spellCheck={false}
+          aria-label={label}
           onChange={(e) => {
             setOpen(true)
-            onChange(e.target.value)
+            const v = e.target.value
+            // A comma or semicolon finishes an address; a pasted list becomes pills.
+            if (/[,;]/.test(v)) {
+              const parts = v.split(/[,;]/)
+              const rest = parts.pop() ?? ''
+              emit(addEntries(pills, parts.map((p) => p.trim()).filter(Boolean)), rest.trimStart())
+            } else emit(pills, v)
           }}
           onFocus={() => setOpen(true)}
+          onBlur={commit}
           onKeyDown={onKeyDown}
         />
         {open && matches.length > 0 && (

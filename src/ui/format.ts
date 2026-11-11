@@ -74,25 +74,6 @@ export function recipientLabel(
   return list.length > 1 ? `${first} +${list.length - 1}` : first
 }
 
-/** Everyone a message went to (To, then Cc), by name where there is one. */
-export function recipientNames(toAddrs: string | null, ccAddrs: string | null): string {
-  const names: string[] = []
-  for (const raw of [toAddrs, ccAddrs]) {
-    if (!raw) continue
-    try {
-      const list = JSON.parse(raw) as { name?: string | null; address?: string | null }[]
-      if (!Array.isArray(list)) continue
-      for (const a of list) {
-        const n = a?.name?.trim() || a?.address
-        if (n) names.push(n)
-      }
-    } catch {
-      /* a malformed column shows no recipients rather than raw JSON */
-    }
-  }
-  return names.join(', ')
-}
-
 /**
  * Snippets built from a message's plain-text part never passed through the
  * HTML stripper, so entities like &nbsp; survive as literal text. Decode at

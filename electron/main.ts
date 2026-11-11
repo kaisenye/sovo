@@ -7,6 +7,7 @@ import { registerTriageIpc } from './ipcTriage.js'
 import { registerPowerIpc } from './ipcPower.js'
 import { registerAiIpc } from './ipcAi.js'
 import { installAppMenu } from './menu.js'
+import { MIN_HEIGHT, MIN_WIDTH, readWindowState, restoreState, trackWindowState } from './windowState.js'
 import { startReminderWorker } from './reminderWorker.js'
 import { startHistoryWorker } from './historyWorker.js'
 import { startAiWorker } from './aiWorker.js'
@@ -61,10 +62,10 @@ function installCrashHandlers(): void {
 }
 
 /** dev: repo root (cwd). packaged: userData, since the bundle is read-only. */
+/** `SOVO_ENV_FILE` is dev-only (the README demo's fake account); a packaged app ignores it. */
 function envLocalPath(): string {
-  return app.isPackaged
-    ? join(app.getPath('userData'), '.env.local')
-    : join(process.cwd(), '.env.local')
+  if (app.isPackaged) return join(app.getPath('userData'), '.env.local')
+  return process.env.SOVO_ENV_FILE || join(process.cwd(), '.env.local')
 }
 
 function boot(): void {
@@ -122,19 +123,25 @@ function startAi(): void {
 }
 
 function createWindow(): void {
-  // Half the screen's width and 70% of its height, centred; never below the
-  // minimum size or past the screen.
-  const area = screen.getPrimaryDisplay().workAreaSize
+  // Where it was last closed, or half the screen's width and 70% of its
+  // height, centred (windowState.ts).
+  const stateFile = join(app.getPath('userData'), 'window-state.json')
+  const state = restoreState(
+    readWindowState(stateFile),
+    screen.getAllDisplays().map((d) => d.workArea),
+    screen.getPrimaryDisplay().workArea
+  )
   const win = new BrowserWindow({
-    width: Math.min(area.width, Math.max(720, Math.round(area.width * 0.5))),
-    height: Math.min(area.height, Math.max(480, Math.round(area.height * 0.7))),
-    center: true,
-    minWidth: 720,
-    minHeight: 480,
+    x: state.x,
+    y: state.y,
+    width: state.width,
+    height: state.height,
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     show: false,
     titleBarStyle: 'hiddenInset',
     // Matches --bg so launch never flashes white before first paint.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#0d0d10' : '#fcfcfb',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#1c1d1f' : '#fcfcfb',
     webPreferences: {
       preload: join(__dirname, '../preload/index.cjs'),
       sandbox: false,
@@ -143,7 +150,13 @@ function createWindow(): void {
     }
   })
 
-  win.on('ready-to-show', () => win.show())
+  trackWindowState(win, stateFile)
+  win.on('ready-to-show', () => {
+    // maximize() shows the window itself, so it waits for the first paint too.
+    if (state.maximized) win.maximize()
+    win.show()
+    if (state.fullScreen) win.setFullScreen(true)
+  })
 
   /*
    * A message body is untrusted HTML. Its frame is sandboxed, but a link that

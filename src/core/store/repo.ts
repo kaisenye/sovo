@@ -412,6 +412,22 @@ export function getMessage(id: number): Message | undefined {
     | undefined
 }
 
+/** The header of a stored message by Message-ID, for a reply's quote box. */
+export function quotedHeader(
+  accountId: number,
+  messageId: string | null | undefined
+): { from_addr: string | null; from_name: string | null; to_addrs: string | null; date: number | null; subject: string | null } | null {
+  if (!messageId) return null
+  return (
+    (getDb()
+      .prepare(
+        `SELECT from_addr, from_name, to_addrs, date, subject FROM messages
+          WHERE account_id = ? AND message_id = ? AND folder_id IS NOT NULL LIMIT 1`
+      )
+      .get(accountId, messageId) as ReturnType<typeof quotedHeader>) ?? null
+  )
+}
+
 /** Owning account of a message, or null once it is gone. */
 export function accountOfMessage(id: number): number | null {
   const row = getDb().prepare('SELECT account_id FROM messages WHERE id = ?').get(id) as
@@ -544,7 +560,7 @@ export function listDrafts(
   limit = 100,
   offset = 0
 ): MessageListRow[] {
-  return getDb()
+  const rows = getDb()
     .prepare(
       `SELECT ${LIST_COLS} FROM messages
        WHERE account_id = ? AND (folder_id IS NULL OR folder_id = ?)
@@ -555,6 +571,21 @@ export function listDrafts(
        ORDER BY date DESC LIMIT ? OFFSET ?`
     )
     .all(accountId, serverFolderId, accountId, limit, offset) as MessageListRow[]
+  // A draft is your own writing, never unread: local drafts are stored with no
+  // flags, and some servers (Exmail) keep drafts without \Seen.
+  return rows.map((r) => (draftFlagsRead(r.flags) === r.flags ? r : { ...r, flags: draftFlagsRead(r.flags) }))
+}
+
+/** `flags` (a JSON array) with \Seen added when missing. */
+export function draftFlagsRead(flags: string | null): string {
+  let list: string[] = []
+  try {
+    const v = JSON.parse(flags ?? '[]')
+    if (Array.isArray(v)) list = v.filter((x): x is string => typeof x === 'string')
+  } catch {
+    // Unreadable flags: treat as none.
+  }
+  return list.includes('\\Seen') ? (flags ?? '[]') : JSON.stringify([...list, '\\Seen'])
 }
 
 /**

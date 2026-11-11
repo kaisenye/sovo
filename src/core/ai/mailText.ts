@@ -18,10 +18,12 @@ export function noEmDash(text: string, keep = ''): string {
   if (keep.includes('—')) return text
   return text
     .replace(/^[ \t]*[—–][ \t]*/gm, '')
+    // A dash ending a line goes with no comma; a comma the writer ended a line
+    // with ("Hi Hana,") stays.
+    .replace(/[ \t]*—[ \t]*$|[ \t]+–[ \t]*$/gm, '')
     .replace(/[ \t]*—[ \t]*|[ \t]+–[ \t]+/g, ', ')
     .replace(/,[ \t]*,/g, ',')
     .replace(/,[ \t]*([.!?;:])/g, '$1')
-    .replace(/,[ \t]*$/gm, '')
 }
 
 /** Drops the quoted history a reply carries, so each message is sent once. */

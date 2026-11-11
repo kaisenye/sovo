@@ -60,6 +60,7 @@ import {
   folderByRole,
   getAttachment,
   getMessage,
+  quotedHeader,
   getSettings,
   setSetting,
   groupByAccount,
@@ -78,7 +79,9 @@ import { countView, listView, repairListDrift, unreadCounts } from '../src/core/
 import type { MoveTarget } from '../src/core/store/folderRoles.js'
 import { sanitizeEmailHtml, textToHtml } from '../src/core/render/sanitize.js'
 import { addLocalSentCopy } from '../src/core/send/localSent.js'
-import { htmlToPlainText, stripComposeMarkers } from '../src/core/send/mime.js'
+import { htmlToPlainText } from '../src/core/send/mime.js'
+import { nativeQuote, quoteStyleFor } from '../src/core/send/nativeQuote.js'
+import { withMailFont } from '../src/core/send/mailFont.js'
 import {
   cancelOutbox,
   enqueueOutbox,
@@ -776,8 +779,12 @@ export function registerIpc(): void {
       if (remindErr) return { ok: false as const, error: remindErr }
       const html = payload.body ?? ''
       const text = htmlToPlainText(html)
-      // The draft keeps the compose markers; the wire copy does not.
-      const wireHtml = stripComposeMarkers(html)
+      // The draft keeps the compose markers; the wire copy does not, and its
+      // quote takes the sending inbox's own markup so its web UI folds it, and
+      // the whole body carries the mail font (sans-serif 12px).
+      const wireHtml = withMailFont(
+        nativeQuote(html, quoteStyleFor(a.config.imapHost), quotedHeader(a.accountId, payload.inReplyTo))
+      )
       updateDraft(payload.draftId, {
         to_addrs: payload.to.trim(),
         cc_addrs: payload.cc?.trim() || null,

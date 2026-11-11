@@ -9,6 +9,10 @@
 :root {
   --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Mail text: what you read, write and send (src/core/send/mailFont.ts). */
+  --font-mail: sans-serif;
+  --text-mail: 12px;
+  --leading-mail: 1.4;
 
   /* Type scale: 11/12/13/15/19. Dense, optical, no fractional sizes. */
   --text-xs: 11px;
