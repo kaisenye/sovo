@@ -1,37 +1,80 @@
+<h1 align="center">
+  <img src="docs/brand/sovo-tile.svg" width="56" height="56" alt="" valign="middle" /> Sovo
+</h1>
+
 <p align="center">
-  <img src="docs/brand/sovo-tile.svg" width="64" height="64" alt="Sovo" />
+  <a href="https://github.com/kaisenye/sovo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/kaisenye/sovo/actions/workflows/ci.yml/badge.svg" /></a>
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" />
+  <img alt="macOS" src="https://img.shields.io/badge/macOS-111?logo=apple&logoColor=white" />
+  <img alt="Electron · React · SQLite" src="https://img.shields.io/badge/Electron%20·%20React%20·%20SQLite-111" />
 </p>
 
-<h1 align="center">Sovo</h1>
+<p align="center">
+  <strong>Mail that keeps up with you.</strong><br />
+  Local-first, keyboard-first desktop mail with AI on your own key. Gmail, Outlook and any IMAP inbox.
+</p>
+
+<h3 align="center"><a href="https://sovomail.xyz"><ins>Get Sovo at sovomail.xyz</ins></a></h3>
 
 <p align="center">
-  Local-first, keyboard-first desktop mail.<br />
-  IMAP/SMTP, Gmail and Outlook. Your mail lives in SQLite on your machine.
+  <img src="docs/assets/readme/hero.jpg" alt="The Sovo inbox in dark mode, with mail grouped by day and Important, Work and Billing labels" width="960" />
 </p>
 
 <p align="center">
-  <a href="https://sovomail.xyz">sovomail.xyz</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#configuration">Configuration</a> ·
   <a href="#architecture">Architecture</a> ·
   <a href="#shortcuts">Shortcuts</a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/kaisenye/sovo/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/kaisenye/sovo/actions/workflows/ci.yml/badge.svg" /></a>
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-blue.svg" />
-  <img alt="stack" src="https://img.shields.io/badge/Electron%20·%20React%20·%20SQLite-111" />
-</p>
+## Features
 
----
+### Ask your inbox
 
-## Why Sovo
+Press <kbd>⌘J</kbd> and ask in plain words: "what do I need to do this week?" Answers cite the messages they came from, one keystroke away.
+
+<picture><source srcset="docs/assets/readme/ask-ai.webp" type="image/webp"><img src="docs/assets/readme/ask-ai.poster.jpg" alt="Asking Sovo what needs doing this week and getting a cited list of five to-dos" width="100%" /></picture>
+
+### Instant Reply
+
+Three replies are written before you open the thread. Press <kbd>1</kbd>, <kbd>2</kbd> or <kbd>3</kbd> to use one, <kbd>⌘↵</kbd> to send, and it shows in the thread at once.
+
+<picture><source srcset="docs/assets/readme/instant-reply.webp" type="image/webp"><img src="docs/assets/readme/instant-reply.poster.jpg" alt="Opening a thread, picking a suggested reply with 1 and sending it" width="100%" /></picture>
+
+### Write with AI
+
+In compose, <kbd>⌘J</kbd> drafts from a one-line instruction, using the conversation and how you have written to this person before.
+
+<picture><source srcset="docs/assets/readme/write-with-ai.webp" type="image/webp"><img src="docs/assets/readme/write-with-ai.poster.jpg" alt="Replying to a support email and drafting the answer from a one-line instruction" width="100%" /></picture>
+
+### Triage at the speed of keys
+
+<kbd>E</kbd> marks done, <kbd>Z</kbd> undoes, <kbd>H</kbd> brings a thread back later. Filters like Needs reply cut the Inbox to what is on you.
+
+<picture><source srcset="docs/assets/readme/triage.webp" type="image/webp"><img src="docs/assets/readme/triage.poster.jpg" alt="Marking newsletters done, undoing, setting a reminder for tomorrow 9am and filtering to Needs reply" width="100%" /></picture>
+
+### Instant search
+
+Every message is in a local full-text index, so results land as you type. Narrow with <code>from:</code>, <code>to:</code>, <code>subject:</code> and <code>is:</code>.
+
+<picture><source srcset="docs/assets/readme/search.webp" type="image/webp"><img src="docs/assets/readme/search.poster.jpg" alt="Searching for contract from Priya and opening the result" width="100%" /></picture>
+
+### Compose
+
+Recipients complete from your own mail and turn into pills. Per-inbox signatures, send later, and an undo window on every send.
+
+<picture><source srcset="docs/assets/readme/compose.webp" type="image/webp"><img src="docs/assets/readme/compose.poster.jpg" alt="Adding three recipients by name, a subject and a line of text to a new email" width="100%" /></picture>
+
+**Also in the box:**
 
 - **Instant.** Every view paints from SQLite first; the network is a background refresh. New mail lands in 1–2 s over IMAP IDLE.
-- **Keyboard-first.** Every action is a key, every key is remappable, and `⌘K` reaches everything else.
 - **Yours.** No Sovo server. Credentials sit in the OS keychain, mail in a local database, and the whole mailbox works offline.
 - **Any provider.** Gmail and Outlook over OAuth, plus any IMAP/SMTP host. Tuned for Tencent Exmail.
-- **AI on your own key.** Write with AI, Instant Reply, summaries, Important / Other, Ask AI. Off until you add an Anthropic, OpenAI or DeepSeek key.
+- **AI on your own key.** Anthropic, OpenAI or DeepSeek. Everything AI is off until you add a key, and a daily budget caps the spend.
+- **Important / Other and labels.** Mail sorts itself into Important and categories, plus labels you describe in your own words.
+- **Every key is remappable.** <kbd>⌘K</kbd> reaches everything else, with tabs, history and <kbd>⌃1</kbd>–<kbd>⌃9</kbd> to switch inboxes.
+
+<sub>The recordings use a fictional mailbox.</sub>
 
 ## Quick start
 

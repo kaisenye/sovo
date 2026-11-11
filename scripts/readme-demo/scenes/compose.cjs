@@ -1,0 +1,18 @@
+module.exports = async (t) => {
+  await t.sleep(800)
+  await t.start(); await t.sleep(700)
+  await t.press('c', { cap: 'C', wait: 900 })
+  await t.type('dan', 8); await t.sleep(700)
+  await t.press('Enter', { cap: '↵', wait: 600 })
+  await t.type('leo', 8); await t.sleep(700)
+  await t.press('Enter', { cap: '↵', wait: 600 })
+  await t.type('hannah', 8); await t.sleep(700)
+  await t.press('Enter', { cap: '↵', wait: 900 })
+  await t.eval("document.getElementById('compose-subject').focus(); true"); await t.sleep(300)
+  await t.type('Lisbon offsite agenda', 16)
+  await t.sleep(300)
+  await t.eval("(() => { const b = document.querySelector('div.compose-body'); b.focus(); const r = document.createRange(); r.setStart(b.firstChild, 0); r.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(r); return true })()")
+  await t.sleep(300)
+  await t.type('Draft agenda is in the doc. Add anything you want covered by Friday.', 24)
+  await t.stop('compose', 1800)
+}
