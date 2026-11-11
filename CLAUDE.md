@@ -77,6 +77,7 @@ Central dispatcher: `src/ui/hooks/useHotkeys.ts`. Modes: `list` | `thread` | `co
 - Modes include `search` (the search page). Tab and history chords use `NAV_MODES` (list, thread, search) and stay off in compose.
 - `⌘W` is close-tab: `electron/menu.ts` moves Close Window to `⇧⌘W`. Check `menu.ts` before taking any ⌘ chord the default menu might own.
 - Thread keys drive `ThreadHandle` (`src/ui/views/Thread.tsx`); App holds no thread reading state.
+- Right-click on a list row opens `RowMenu` (an overlay, so list keys pause): its actions with their shortcuts, built by `rowMenuEntries` (`src/ui/rowMenu.ts`) from the remapped commands and run through the same handlers in list mode. `⌘B` (`view.sidebar`, nav modes only; compose keeps it for bold) and a panel button fold the sidebar away (at the right end of the sidebar's top row, level with the traffic lights; when folded, beside the lights before ← →), remembered in localStorage.
 - `⌘J` is AI everywhere: `compose.ai` (Write with AI, `external`, handled in `Compose.tsx`) in compose, `ai.ask` elsewhere. `⇥` inside ⌘K switches Commands ↔ Ask AI and is palette-local, not a command. `1`–`3` in a thread are `reply.option1–3` (Instant Reply).
 
 ## Schema

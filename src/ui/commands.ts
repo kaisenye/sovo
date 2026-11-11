@@ -30,6 +30,7 @@ export type CommandId =
   | 'compose.new'
   | 'settings.open'
   | 'shortcuts.open'
+  | 'view.sidebar'
   | 'escape'
   | 'sync.now'
   | 'account.add'
@@ -154,6 +155,8 @@ export const COMMANDS: Command[] = [
     palette: true,
     keys: [{ kind: 'mod', key: '.' }]
   },
+  // Compose keeps ⌘B for bold.
+  { id: 'view.sidebar', title: 'Show / hide sidebar', group: 'General', palette: true, keys: [{ kind: 'mod', key: 'b', modes: NAV_MODES }] },
   {
     id: 'escape',
     title: 'Close · clear selection · go back',

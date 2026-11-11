@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react'
-import { CheckSquare, ChevronRight, Clock, Keyboard, PenSquare, Plus, Search, Settings as SettingsIcon } from 'lucide-react'
+import { CheckSquare, ChevronRight, Clock, Keyboard, PanelLeft, PenSquare, Plus, Search, Settings as SettingsIcon } from 'lucide-react'
 import type { AccountSummary } from '../../../electron/preload'
 import { AccountSwitcher } from './AccountSwitcher'
 import type { Folder } from '../../core/store/types'
@@ -37,6 +37,8 @@ interface Props {
   onLabel: (chip: ChipId) => void
   /** Settings → AI, where labels are added and edited. */
   onManageLabels: () => void
+  /** ⌘B: fold the sidebar away (the tab bar shows the button while it is folded). */
+  onHide: () => void
 }
 
 const YOURS_KEY = 'sovo.sidebar.yourLabels'
@@ -88,7 +90,8 @@ export function Sidebar({
   yourLabels,
   activeChip,
   onLabel,
-  onManageLabels
+  onManageLabels,
+  onHide
 }: Props) {
   // Tasks opens over the current view; while it is open nothing else in the
   // sidebar is the current page.
@@ -126,6 +129,20 @@ export function Sidebar({
 
   return (
     <nav className="sidebar">
+      {/* The traffic lights' row: the hide button sits at its right end. */}
+      <div className="sidebar-top">
+        <button
+          className="tab-nav"
+          title="Hide sidebar (⌘B)"
+          aria-label="Hide sidebar"
+          onClick={(e) => {
+            e.currentTarget.blur()
+            onHide()
+          }}
+        >
+          <PanelLeft size={16} strokeWidth={2} />
+        </button>
+      </div>
       {/* Compose and Search first, above the mailbox (Scape). */}
       <div className="sidebar-actions">
         <button

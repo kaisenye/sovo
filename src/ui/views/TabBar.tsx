@@ -1,5 +1,5 @@
 import type { MouseEvent } from 'react'
-import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, PanelLeft, Plus, X } from 'lucide-react'
 import { BrandMark } from './BrandMark'
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
   onNew: () => void
   onBack: () => void
   onForward: () => void
+  sidebarCollapsed: boolean
+  onToggleSidebar: () => void
   /** A first sync or a large catch-up; null hides it. */
   progress?: { done: number; expected: number; pct: number } | null
   /** An ordinary sync: the mark's loading loop, detail on hover. */
@@ -20,11 +22,32 @@ interface Props {
 }
 
 /** Workspace tabs (Scape): ⌘T, ⌘W, ⌘1–9, ⌃Tab; back / forward per tab with ⌘[ / ⌘]. */
-export function TabBar({ tabs, active, canBack, canForward, onSelect, onClose, onNew, onBack, onForward, progress, syncing, syncLabel }: Props) {
+export function TabBar({
+  tabs,
+  active,
+  canBack,
+  canForward,
+  onSelect,
+  onClose,
+  onNew,
+  onBack,
+  onForward,
+  sidebarCollapsed,
+  onToggleSidebar,
+  progress,
+  syncing,
+  syncLabel
+}: Props) {
   // Mouse use must not keep focus on a button, or j/k stop working.
   const blur = (e: MouseEvent<HTMLElement>): void => e.currentTarget.blur()
   return (
     <div className="tab-bar">
+      {/* Folded sidebar: its show button sits beside the traffic lights, before ← →. */}
+      {sidebarCollapsed && (
+        <button className="tab-nav" title="Show sidebar (⌘B)" aria-label="Show sidebar" onClick={(e) => (blur(e), onToggleSidebar())}>
+          <PanelLeft size={16} strokeWidth={2} />
+        </button>
+      )}
       <button className="tab-nav" title="Back (⌘[)" aria-label="Back" disabled={!canBack} onClick={(e) => (blur(e), onBack())}>
         <ArrowLeft size={16} strokeWidth={2} />
       </button>

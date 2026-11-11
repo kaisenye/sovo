@@ -35,6 +35,8 @@ import { Toaster } from './views/Toaster'
 import { dismissToast, showToast, toast } from './toasts'
 import { RemindPicker } from './views/RemindPicker'
 import { Picker, type PickerItem } from './views/Picker'
+import { RowMenu } from './views/RowMenu'
+import { rowMenuEntries } from './rowMenu'
 import { ConfirmDialog } from './views/ConfirmDialog'
 import { AttachmentPreview } from './views/AttachmentPreview'
 import { ZeroModal } from './views/ZeroModal'
@@ -100,6 +102,8 @@ const OUTGOING_ROLES: FolderRole[] = ['sent', 'drafts']
 const PAGE_SIZE = 50
 
 /** A picker or dialog over the list. Keys inside it are its own, so mode is 'modal'. */
+const SIDEBAR_KEY = 'sovo.sidebar.collapsed'
+
 type Overlay =
   | { kind: 'remind'; fromThread: boolean; hasReminder: boolean }
   | { kind: 'move'; fromThread: boolean }
@@ -107,6 +111,8 @@ type Overlay =
   | { kind: 'unsubscribe'; id: number; sender: string; description: string }
   | { kind: 'zero'; folderId: number }
   | { kind: 'clean'; folderId: number }
+  /** Right-click on a list row: its actions and their shortcuts. */
+  | { kind: 'rowMenu'; x: number; y: number; row: MessageListRow }
   /** ⌘O on an attachment: the in-app preview, or a confirmation before the OS opens it. */
   | { kind: 'attachment'; attachment: Attachment; canPreview: boolean }
 
@@ -337,6 +343,24 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   const [settingsSection, setSettingsSection] = useState<SettingsSection | undefined>()
   /** The sidebar's "Your labels": Gmail labels, then the inbox's own (Settings → AI). */
   const [yourLabels, setYourLabels] = useState<SidebarLabel[]>([])
+  /** ⌘B / the tab bar's panel button. Remembered per window; storage may be unavailable. */
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((on) => {
+      try {
+        localStorage.setItem(SIDEBAR_KEY, on ? '0' : '1')
+      } catch {
+        // Not remembered; it still toggles.
+      }
+      return !on
+    })
+  }, [])
   /** Gmail label colours for row chips (v23); empty for other accounts. */
   const [labelColors, setLabelColors] = useState<LabelColors>({})
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
@@ -1542,6 +1566,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
         'compose.new': startCompose,
         'settings.open': () => setSettingsOpen(true),
         'shortcuts.open': () => setShortcutsOpen(true),
+        'view.sidebar': toggleSidebar,
         escape: ({ mode: m }) => {
           if (m === 'thread') closeThread()
           else if (m === 'search') {
@@ -1705,6 +1730,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       }),
     [
       openPalette,
+      toggleSidebar,
       startCompose,
       closeThread,
       clearChecked,
@@ -1916,7 +1942,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     ) : null
 
   return (
-    <div className="app" data-swap={screenSwap ?? undefined}>
+    <div className="app" data-swap={screenSwap ?? undefined} data-sidebar={sidebarCollapsed && !settingsOpen ? 'collapsed' : undefined}>
       <div className="titlebar-drag" />
       {settingsOpen ? (
         <Settings
@@ -1988,6 +2014,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           setSettingsSection('ai')
           setSettingsOpen(true)
         }}
+        onHide={toggleSidebar}
       />
       <main className="main">
         {workspace && (
@@ -2008,6 +2035,8 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
             }}
             onBack={() => showWorkspace(back(workspace))}
             onForward={() => showWorkspace(forward(workspace))}
+            sidebarCollapsed={sidebarCollapsed}
+            onToggleSidebar={toggleSidebar}
             progress={bar}
             syncing={syncing}
             syncLabel={syncLabel}
@@ -2153,6 +2182,16 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
                 checkedIds={checkedIds}
                 onSelect={setSelectedIndex}
                 onHover={hoverCursor}
+                onRowMenu={(i, x, y) => {
+                  const { rows: r, checkedIds: c } = useStore.getState()
+                  const row = r[i]
+                  if (!row) return
+                  // The menu acts on what it was opened on: a checked group, or
+                  // this row alone (never a selection it is not part of).
+                  if (c.length && !c.includes(row.id)) clearChecked()
+                  hoverCursor(i)
+                  setOverlay({ kind: 'rowMenu', x, y, row })
+                }}
                 onToggleCheck={onToggleCheck}
                 onOpen={openRow}
                 loadingMore={loadingMore}
@@ -2187,6 +2226,22 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
                 }
               : undefined
           }
+        />
+      )}
+      {overlay?.kind === 'rowMenu' && (
+        <RowMenu
+          x={overlay.x}
+          y={overlay.y}
+          entries={rowMenuEntries(overlay.row, {
+            inInbox: isInbox(activeFolderId) || activeFolderId === REMINDERS_VIEW_ID,
+            commands
+          })}
+          onClose={() => setOverlay(null)}
+          onPick={(id) => {
+            setOverlay(null)
+            // Pickers it opens (Remind, Move, Label) replace this overlay.
+            void handlers[id]?.({ mode: 'list' })
+          }}
         />
       )}
       {overlay?.kind === 'move' && (

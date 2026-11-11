@@ -23,6 +23,8 @@ interface Props {
   onHover?: (i: number) => void
   onToggleCheck: (id: number, index: number, shiftKey: boolean) => void
   onOpen?: (i: number) => void
+  /** Right-click on a row, at viewport x / y. */
+  onRowMenu?: (i: number, x: number, y: number) => void
   /** More rows are being fetched (the loader at the bottom shows). */
   loadingMore?: boolean
   /** False once neither SQLite nor the server has older mail for this view. */
@@ -52,6 +54,7 @@ export function MessageList({
   onHover,
   onToggleCheck,
   onOpen,
+  onRowMenu,
   loadingMore,
   hasMore = false,
   onLoadMore,
@@ -208,6 +211,12 @@ export function MessageList({
                   }
                   onSelect(index)
                   if (onOpen) onOpen(index)
+                }}
+                onContextMenu={(e) => {
+                  if (!onRowMenu) return
+                  e.preventDefault()
+                  hovered.current = true
+                  onRowMenu(index, e.clientX, e.clientY)
                 }}
               >
                 {/* The checkbox sits on the unread dot and shows on hover, or

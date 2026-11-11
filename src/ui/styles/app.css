@@ -98,6 +98,39 @@ button > svg {
   grid-template-columns: var(--sidebar-width) 1fr;
   height: 100%;
   background: var(--bg);
+  transition: grid-template-columns 220ms var(--ease-out);
+}
+
+/* ⌘B: the sidebar folds away; the tab bar steps right of the traffic lights. */
+.app[data-sidebar='collapsed'] {
+  grid-template-columns: 0 1fr;
+}
+
+.app > .sidebar {
+  min-width: 0;
+  transition: opacity 160ms var(--ease-out), visibility 0s;
+}
+
+.app[data-sidebar='collapsed'] > .sidebar {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms var(--ease-out), visibility 0s linear 220ms;
+}
+
+.app .tab-bar {
+  transition: padding-left 220ms var(--ease-out);
+}
+
+.app[data-sidebar='collapsed'] .tab-bar {
+  padding-left: 78px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app,
+  .app > .sidebar,
+  .app .tab-bar {
+    transition: none;
+  }
 }
 
 /* Settings ↔ app: the arriving screen slides a few pixels in from its side
@@ -150,8 +183,24 @@ button > svg {
   flex-direction: column;
   /* One surface with the content: no seam between the two. */
   background: var(--bg);
-  padding-top: 46px;
+  padding-top: 0;
   overflow: hidden;
+}
+
+/* Level with the traffic lights and the tab bar (40px); hide button at the right end. */
+.sidebar-top {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  height: 40px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+  -webkit-app-region: drag;
+}
+
+.sidebar-top button {
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-account {
@@ -6355,4 +6404,94 @@ button.sidebar-account svg {
 
 .message-to > .message-to-cc {
   margin-left: var(--space-2);
+}
+
+/* ---- list row right-click menu ---- */
+
+.row-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+}
+
+.row-menu {
+  position: fixed;
+  min-width: 232px;
+  padding: 4px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  outline: none;
+  animation: row-menu-in 120ms var(--ease-out);
+  transform-origin: top left;
+}
+
+@keyframes row-menu-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.row-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  width: 100%;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-md);
+  cursor: default;
+}
+
+.row-menu-item[data-active='true'] {
+  background: var(--surface-selected);
+}
+
+.row-menu-item[data-danger='true'] {
+  color: var(--tone-important);
+}
+
+.row-menu-label {
+  flex: 1;
+  white-space: nowrap;
+}
+
+.row-menu-keys {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.row-menu-keys kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.row-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-menu {
+    animation: none;
+  }
 }
