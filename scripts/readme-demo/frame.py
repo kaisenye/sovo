@@ -1,9 +1,11 @@
-"""frame.py <in.png> <out-dir> <window-points-width> [width] [frames]
+"""frame.py <in.png> <out-dir> <window-points-width> [width] [frames] [backdrop-image]
 
-Puts a window capture on a slowly moving black-and-white gradient: rounded
-corners, a soft glow and macOS traffic lights (the capture has no title bar;
-the app uses hiddenInset). Writes <out-dir>/0000.png… as one seamless loop,
-for img2webp, plus <out-dir>/still.jpg for the poster."""
+Puts a window capture on a backdrop with rounded corners and macOS traffic
+lights (the capture has no title bar; the app uses hiddenInset). With a
+backdrop image: one still, the photo cover-fit behind a drop shadow. Without:
+a slowly moving black-and-white gradient with a soft glow, written as
+<out-dir>/0000.png… (one seamless loop, for img2webp). Always writes
+<out-dir>/still.jpg."""
 import math
 import os
 import sys
@@ -15,6 +17,7 @@ src, out_dir = sys.argv[1], sys.argv[2]
 points = int(sys.argv[3])
 width = int(sys.argv[4]) if len(sys.argv) > 4 else 1600
 n_frames = int(sys.argv[5]) if len(sys.argv) > 5 else 60
+photo = sys.argv[6] if len(sys.argv) > 6 and sys.argv[6] else None
 os.makedirs(out_dir, exist_ok=True)
 
 # Window at output scale.
@@ -69,15 +72,31 @@ def backdrop(t):
     return Image.fromarray(np.uint8(g * 255), 'L').convert('RGB')
 
 
+def photo_backdrop():
+    """The photo scaled to cover, blurred a touch (hides compression blocks),
+    with a soft dark shadow under the window."""
+    im = Image.open(photo).convert('RGB')
+    k = max(BW / im.width, BH / im.height)
+    im = im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)
+    x, y = (im.width - BW) // 2, (im.height - BH) // 2
+    bg = im.crop((x, y, x + BW, y + BH)).filter(ImageFilter.GaussianBlur(round(6 * s)))
+    sh = Image.new('L', (BW, BH), 0)
+    off = round(16 * s)
+    ImageDraw.Draw(sh).rounded_rectangle((pad_x, pad_top + off, pad_x + W, pad_top + H + off), r, fill=120)
+    sh = sh.filter(ImageFilter.GaussianBlur(round(30 * s)))
+    return Image.composite(Image.new('RGB', (BW, BH), (14, 18, 40)), bg, sh)
+
+
 def frame(t):
-    bg = backdrop(t)
+    bg = photo_backdrop() if photo else backdrop(t)
     bg.paste(win, (pad_x, pad_top), mask)
     ImageDraw.Draw(bg).rounded_rectangle((pad_x, pad_top, pad_x + W - 1, pad_top + H - 1), r,
                                          outline=(78, 78, 84), width=max(1, round(s * 0.5)))
     return bg
 
 
-for i in range(n_frames):
-    frame(i / n_frames).save(os.path.join(out_dir, f'{i:04d}.png'))
+if not photo:
+    for i in range(n_frames):
+        frame(i / n_frames).save(os.path.join(out_dir, f'{i:04d}.png'))
 frame(0).save(os.path.join(out_dir, 'still.jpg'), quality=90)
-print(n_frames, 'frames', BW, 'x', BH)
+print('still' if photo else f'{n_frames} frames', BW, 'x', BH)

@@ -14,10 +14,16 @@ for s in $scenes; do
   node $HERE/rec.cjs $HERE/scenes/$s.cjs
   if [[ $s == hero ]]; then
     rm -rf $WORK/hero
-    python3 $HERE/frame.py $WORK/frames/hero.png $WORK/hero $DEMO_W 1600 72
-    img2webp -loop 0 -lossy -q 75 -m 4 -d 83 $WORK/hero/0*.png -o $ASSETS/hero.webp >/dev/null 2>&1
+    # SOVO_DEMO_BACKDROP=<image>: a still on that photo (the README's is kept
+    # out of the repo, it is a licensed stock photo). Unset: animated gradient.
+    python3 $HERE/frame.py $WORK/frames/hero.png $WORK/hero $DEMO_W 1600 72 "${SOVO_DEMO_BACKDROP:-}"
     cp $WORK/hero/still.jpg $ASSETS/hero.jpg
-    echo "hero: $(du -k $ASSETS/hero.webp | cut -f1) KB webp, $(du -k $ASSETS/hero.jpg | cut -f1) KB still"
+    if [[ -n ${SOVO_DEMO_BACKDROP:-} ]]; then
+      rm -f $ASSETS/hero.webp
+    else
+      img2webp -loop 0 -lossy -q 75 -m 4 -d 83 $WORK/hero/0*.png -o $ASSETS/hero.webp >/dev/null 2>&1
+    fi
+    echo "hero: $(du -k $ASSETS/hero.jpg | cut -f1) KB still"
   else
     $HERE/encode.sh $s
     cp $WORK/out/$s.webp $WORK/out/$s.poster.jpg $ASSETS/

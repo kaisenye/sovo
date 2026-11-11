@@ -33,11 +33,16 @@ keystrokes with a keycap overlay, and writes `<scene>.webp` plus a
 | `rec.cjs` | Recording driver: screencast, keycaps, `press` / `type` / `waitFor` helpers |
 | `scenes/*.cjs` | One script per clip; `setup.cjs` sets the fake AI key |
 | `encode.sh` | Frames to a 15 fps, 1600 px looping WebP and poster |
-| `frame.py` | Puts the hero capture on a looping black-and-white gradient |
+| `frame.py` | Puts the hero capture on a backdrop: a photo, or a looping black-and-white gradient |
 
 The demo profile and frames live in `$TMPDIR/sovo-readme-demo`
 (`SOVO_DEMO_WORK` to move it). Delete that folder to start from a new profile.
 `SOVO_DEMO_ASSETS` writes the results somewhere other than `docs/assets/readme`.
+
+The README hero sits on a licensed stock photo that is not in the repo. To
+rebuild it, pass the image: `SOVO_DEMO_BACKDROP=~/path/to/photo.avif record.sh hero`.
+Without it the hero gets an animated black-and-white gradient (`hero.webp`);
+then point the README's hero back at that file.
 
 To add a clip, copy a scene, record it, and add a row to the Features table in
 the top-level README.
