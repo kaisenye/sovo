@@ -17,7 +17,7 @@
 <h3 align="center"><a href="https://sovomail.xyz"><ins>Get Sovo at sovomail.xyz</ins></a></h3>
 
 <p align="center">
-  <img src="docs/assets/readme/hero.jpg" alt="The Sovo inbox in dark mode, with mail grouped by day and Important, Work and Billing labels" width="960" />
+  <picture><source srcset="docs/assets/readme/hero.webp" type="image/webp"><img src="docs/assets/readme/hero.jpg" alt="The Sovo inbox in dark mode, with mail grouped by day and Important, Work and Billing labels" width="960" /></picture>
 </p>
 
 <p align="center">
@@ -29,41 +29,80 @@
 
 ## Features
 
+<table>
+<tr>
+<td width="30%" valign="middle">
+
 ### Ask your inbox
 
 Press <kbd>⌘J</kbd> and ask in plain words: "what do I need to do this week?" Answers cite the messages they came from, one keystroke away.
 
-<picture><source srcset="docs/assets/readme/ask-ai.webp" type="image/webp"><img src="docs/assets/readme/ask-ai.poster.jpg" alt="Asking Sovo what needs doing this week and getting a cited list of five to-dos" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/ask-ai.webp" type="image/webp"><img src="docs/assets/readme/ask-ai.poster.jpg" alt="Asking Sovo what needs doing this week and getting a cited list of five to-dos" width="100%" /></picture>
+</td>
+</tr>
+<tr>
+<td width="30%" valign="middle">
 
 ### Instant Reply
 
 Three replies are written before you open the thread. Press <kbd>1</kbd>, <kbd>2</kbd> or <kbd>3</kbd> to use one, <kbd>⌘↵</kbd> to send, and it shows in the thread at once.
 
-<picture><source srcset="docs/assets/readme/instant-reply.webp" type="image/webp"><img src="docs/assets/readme/instant-reply.poster.jpg" alt="Opening a thread, picking a suggested reply with 1 and sending it" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/instant-reply.webp" type="image/webp"><img src="docs/assets/readme/instant-reply.poster.jpg" alt="Opening a thread, picking a suggested reply with 1 and sending it" width="100%" /></picture>
+</td>
+</tr>
+<tr>
+<td width="30%" valign="middle">
 
 ### Write with AI
 
 In compose, <kbd>⌘J</kbd> drafts from a one-line instruction, using the conversation and how you have written to this person before.
 
-<picture><source srcset="docs/assets/readme/write-with-ai.webp" type="image/webp"><img src="docs/assets/readme/write-with-ai.poster.jpg" alt="Replying to a support email and drafting the answer from a one-line instruction" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/write-with-ai.webp" type="image/webp"><img src="docs/assets/readme/write-with-ai.poster.jpg" alt="Replying to a support email and drafting the answer from a one-line instruction" width="100%" /></picture>
+</td>
+</tr>
+<tr>
+<td width="30%" valign="middle">
 
 ### Triage at the speed of keys
 
 <kbd>E</kbd> marks done, <kbd>Z</kbd> undoes, <kbd>H</kbd> brings a thread back later. Filters like Needs reply cut the Inbox to what is on you.
 
-<picture><source srcset="docs/assets/readme/triage.webp" type="image/webp"><img src="docs/assets/readme/triage.poster.jpg" alt="Marking newsletters done, undoing, setting a reminder for tomorrow 9am and filtering to Needs reply" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/triage.webp" type="image/webp"><img src="docs/assets/readme/triage.poster.jpg" alt="Marking newsletters done, undoing, setting a reminder for tomorrow 9am and filtering to Needs reply" width="100%" /></picture>
+</td>
+</tr>
+<tr>
+<td width="30%" valign="middle">
 
 ### Instant search
 
 Every message is in a local full-text index, so results land as you type. Narrow with <code>from:</code>, <code>to:</code>, <code>subject:</code> and <code>is:</code>.
 
-<picture><source srcset="docs/assets/readme/search.webp" type="image/webp"><img src="docs/assets/readme/search.poster.jpg" alt="Searching for contract from Priya and opening the result" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/search.webp" type="image/webp"><img src="docs/assets/readme/search.poster.jpg" alt="Searching for contract from Priya and opening the result" width="100%" /></picture>
+</td>
+</tr>
+<tr>
+<td width="30%" valign="middle">
 
 ### Compose
 
 Recipients complete from your own mail and turn into pills. Per-inbox signatures, send later, and an undo window on every send.
 
-<picture><source srcset="docs/assets/readme/compose.webp" type="image/webp"><img src="docs/assets/readme/compose.poster.jpg" alt="Adding three recipients by name, a subject and a line of text to a new email" width="100%" /></picture>
+</td>
+<td width="70%">
+  <picture><source srcset="docs/assets/readme/compose.webp" type="image/webp"><img src="docs/assets/readme/compose.poster.jpg" alt="Adding three recipients by name, a subject and a line of text to a new email" width="100%" /></picture>
+</td>
+</tr>
+</table>
 
 **Also in the box:**
 

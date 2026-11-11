@@ -24,7 +24,7 @@ DELETE FROM ai_jobs; DELETE FROM outbox; DELETE FROM move_jobs; DELETE FROM remi
 DELETE FROM settings WHERE key LIKE 'account.1.workspace%';
 .read $WORK/seed.sql
 SQL
-echo '{"x":60,"y":60,"width":1440,"height":900,"maximized":false,"fullScreen":false}' > $PROFILE/window-state.json
+echo "{\"x\":60,\"y\":60,\"width\":$DEMO_W,\"height\":$DEMO_H,\"maximized\":false,\"fullScreen\":false}" > $PROFILE/window-state.json
 
 demo_launch
 node $HERE/rec.cjs $HERE/scenes/setup.cjs

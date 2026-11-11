@@ -6,6 +6,9 @@ export SOVO_DEMO_PORT=${SOVO_DEMO_PORT:-9224}
 WORK=$SOVO_DEMO_WORK
 PORT=$SOVO_DEMO_PORT
 AI_PORT=4011
+# The demo window in points: 125% of 1440x900, so the UI reads larger at the same pixel size.
+DEMO_W=1152
+DEMO_H=720
 PROFILE=$WORK/profile
 DB=$PROFILE/sovo.db
 mkdir -p $WORK

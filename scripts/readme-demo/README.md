@@ -16,8 +16,9 @@ scripts/readme-demo/record.sh                    # every scene
 scripts/readme-demo/record.sh ask-ai triage      # just these
 ```
 
-Each scene starts from a freshly seeded app (dates relative to now), plays
-scripted keystrokes with a keycap overlay, and writes `<scene>.webp` plus a
+Each scene starts from a freshly seeded app (dates relative to now) in a
+1152×720 window, 125% of 1440×900 so text reads larger, plays scripted
+keystrokes with a keycap overlay, and writes `<scene>.webp` plus a
 `<scene>.poster.jpg` still (GitHub shows it where WebP doesn't play).
 
 ## Files
@@ -32,6 +33,7 @@ scripted keystrokes with a keycap overlay, and writes `<scene>.webp` plus a
 | `rec.cjs` | Recording driver: screencast, keycaps, `press` / `type` / `waitFor` helpers |
 | `scenes/*.cjs` | One script per clip; `setup.cjs` sets the fake AI key |
 | `encode.sh` | Frames to a 15 fps, 1600 px looping WebP and poster |
+| `frame.py` | Puts the hero capture on a looping black-and-white gradient |
 
 The demo profile and frames live in `$TMPDIR/sovo-readme-demo`
 (`SOVO_DEMO_WORK` to move it). Delete that folder to start from a new profile.
