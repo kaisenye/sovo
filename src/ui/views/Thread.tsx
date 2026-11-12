@@ -19,7 +19,7 @@ import { ContactPill } from './ContactPill'
 import { replyPick, type ReplyPick } from '../aiInsights'
 import { useAiInsights } from '../hooks/useAiInsights'
 import { cycleIndex, openActiveTarget, stepIndex, toggleAllExpanded } from '../threadNav'
-import { previewKind } from './AttachmentPreview'
+import { previewKind } from '../attachmentKind'
 import { MessageBody } from './MessageBody'
 import { ReplySuggestions, ThreadInsightsBar, ThreadSummaryLine } from './ThreadInsights'
 
@@ -46,7 +46,7 @@ interface Props {
   onStar: () => void
   onToggleRead: () => void
   /** ⌘O on an attachment: App previews it in-app, or confirms before opening it externally. */
-  onAttachment: (attachment: Attachment, canPreview: boolean) => void
+  onAttachment: (attachment: Attachment, canPreview: boolean, all: Attachment[]) => void
   /** The thread's messages are on screen (their body requests already sent). */
   onLoaded?: () => void
   starred: boolean
@@ -247,7 +247,7 @@ export const Thread = forwardRef<ThreadHandle, Props>(function Thread(
         const t = openActiveTarget(info, activeLink, (a) => previewKind(a) !== null)
         if (!t) return
         if (t.kind === 'link') void window.api.openExternal(t.url)
-        else onAttachment(t.attachment, t.kind === 'preview')
+        else onAttachment(t.attachment, t.kind === 'preview', info?.attachments ?? [t.attachment])
       },
       summarize: () => void ai.summarize(),
       replyOption: (i: number) => replyPick(ai.insights, i)

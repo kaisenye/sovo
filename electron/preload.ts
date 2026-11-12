@@ -390,6 +390,8 @@ const api = {
   openExternal: (url: string): Promise<boolean> => ipcRenderer.invoke('shell:open', url),
   attachmentData: (id: number): Promise<AttachmentData> =>
     ipcRenderer.invoke('attachment:data', id),
+  /** A small OS-drawn thumbnail as a data URL, or null. */
+  attachmentThumb: (id: number): Promise<string | null> => ipcRenderer.invoke('attachment:thumb', id),
   saveAttachment: (
     id: number
   ): Promise<{ ok: true; path: string | null } | { ok: false; error: string }> =>

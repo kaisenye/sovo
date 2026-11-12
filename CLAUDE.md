@@ -19,7 +19,8 @@ Fast local-first mail client (IMAP/SMTP, Gmail, Outlook). North star: Superhuman
 - Accounts authenticate with a password or OAuth2 (`AccountConfig.auth`). OAuth refresh tokens live in the vault as JSON under `auth_ref`; access tokens are in-memory only (`src/core/accounts/oauth.ts`). Always build IMAP/SMTP auth with `resolveAuth` / `smtpAuth` — never read a password off the config.
 - Gmail syncs only its system folders (`shouldSyncFolder`); All Mail and label folders are duplicates.
 - OAuth sign-in also asks for `profile`: the ID token's name (kept as the From: name only when none is set) and photo (fetched once, stored as a data URL in `account.<id>.avatar`) show in the inbox switcher (`src/core/accounts/profile.ts`). An OAuth inbox signed in before that (`account.<id>.profile` unset) is offered a one-time reconnect. Outlook gets the name only: its photo needs Microsoft Graph, a resource one token request cannot mix with Outlook's.
-- Sanitize **received** HTML in main before the renderer sees it. Outbound compose HTML is user-authored.
+- Sanitize **received** HTML in main before the renderer sees it.
+- Attachments show as cards (`AttachmentList`, OS thumbnails from `attachment:thumb` via `nativeImage.createThumbnailFromPath`) and open in one viewer (`AttachmentViewer`, state in `usePreview`, `src/ui/attachmentKind.ts`) that steps ← → through the message's files. PDF: pdf.js pages painted near the viewport at device pixel ratio, with its text layer; spreadsheets (csv/tsv/xlsx/xls/ods) parse in `sheetWorker.ts` (SheetJS 0.20.3 from cdn.sheetjs.com, never npm `xlsx`; no DOM, no `window.api`) into a virtualized grid; a CSV that is not UTF-8 decodes as GB18030. Images render as `<img>`; text, markdown and media keep the opaque sandboxed frame. Outbound compose HTML is user-authored.
 
 ## Local-first rules
 

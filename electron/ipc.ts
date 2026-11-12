@@ -1,4 +1,4 @@
-import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { BrowserWindow, dialog, ipcMain, nativeImage, shell } from 'electron'
 import { basename, extname } from 'path'
 import { copyFileSync, readFileSync, statSync } from 'fs'
 import { attachmentPath, signatureLogoPath } from '../src/core/store/attachments.js'
@@ -926,6 +926,26 @@ export function registerIpc(): void {
     } catch (e) {
       return { ok: false as const, error: (e as Error).message }
     }
+  })
+
+  // Card thumbnails from the OS (Quick Look on macOS): every type it knows,
+  // drawn outside this process. Cached per attachment; null where unsupported.
+  const thumbs = new Map<number, string | null>()
+  ipcMain.handle('attachment:thumb', async (_e, id: number) => {
+    if (thumbs.has(id)) return thumbs.get(id)
+    const path = attachmentPath(id)
+    let url: string | null = null
+    if (path && (process.platform === 'darwin' || process.platform === 'win32')) {
+      try {
+        const img = await nativeImage.createThumbnailFromPath(path, { width: 320, height: 240 })
+        url = img.isEmpty() ? null : img.toDataURL()
+      } catch {
+        url = null
+      }
+    }
+    if (thumbs.size > 500) thumbs.clear()
+    thumbs.set(id, url)
+    return url
   })
 
   ipcMain.handle('attachment:save', async (_e, id: number) => {

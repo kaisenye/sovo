@@ -1236,42 +1236,6 @@ button > svg {
   text-decoration: underline;
 }
 
-.attachments {
-  list-style: none;
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.attachment {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-1) var(--space-3);
-  background: var(--bg-sunken);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-sm);
-  max-width: 260px;
-  transition: background var(--duration-fast) var(--ease-out);
-}
-
-.attachment-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--text-secondary);
-}
-
-.attachment-size {
-  font-family: var(--font-ui);
-  font-size: var(--text-xs);
-  color: var(--text-quaternary);
-  flex-shrink: 0;
-}
-
 /* ---- states ---- */
 
 .empty {
@@ -2148,120 +2112,695 @@ div.compose-body[data-empty='true']::before {
   color: var(--text-primary);
 }
 
-/* ---- attachment preview ---- */
+/* ---- attachments: cards in a message ---- */
+.attachments {
+  list-style: none;
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
 
-.attachment-open {
-  color: var(--text-secondary);
+.attachment-card {
+  position: relative;
+  width: 184px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-raised);
+  overflow: hidden;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow 200ms var(--ease-out),
+    transform 200ms var(--ease-out);
+}
+
+.attachment-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.attachment-hit {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   text-align: left;
+}
+
+.attachment-hit:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: var(--radius-lg);
+}
+
+.attachment-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 104px;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border-faint);
+  color: var(--tone, var(--text-tertiary));
+  overflow: hidden;
+}
+
+.attachment-card[data-kind='pdf'] { --tone: var(--tone-important); }
+.attachment-card[data-kind='sheet'] { --tone: var(--tone-billing); }
+.attachment-card[data-kind='image'],
+.attachment-card[data-kind='svg'] { --tone: var(--tone-work); }
+.attachment-card[data-kind='video'],
+.attachment-card[data-kind='audio'] { --tone: var(--tone-newsletter); }
+
+.attachment-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+
+/* A document's thumbnail is a page: show all of it, on paper. */
+.attachment-card:is([data-kind='pdf'], [data-kind='sheet']) .attachment-thumb img {
+  object-fit: contain;
+  padding: var(--space-2) var(--space-3) 0;
+  object-position: top center;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.12));
+}
+
+.attachment-thumb img[data-ready] {
+  opacity: 1;
+}
+
+.attachment-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px 8px;
+  min-width: 0;
+}
+
+.attachment-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
 }
 
-.attachment-open:hover {
-  color: var(--accent);
-  text-decoration: underline;
+.attachment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.attachment-badge {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--tone, var(--text-tertiary));
 }
 
 .attachment-actions {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
-  gap: var(--space-2);
-  margin-left: auto;
-  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-raised) 82%, transparent);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 0 0 1px var(--border);
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity 150ms var(--ease-out),
+    transform 150ms var(--ease-out);
+}
+
+.attachment-card:hover .attachment-actions,
+.attachment-card:focus-within .attachment-actions {
+  opacity: 1;
+  transform: none;
 }
 
 .attachment-actions button {
-  color: var(--text-tertiary);
-  font-size: var(--text-xs);
-  transition:
-    background var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
 }
 
 .attachment-actions button:hover {
   color: var(--text-primary);
+  background: var(--border);
 }
 
+/* ---- attachment viewer ---- */
 .preview-backdrop {
   position: fixed;
   inset: 0;
   z-index: 120;
-  background: rgba(17, 17, 16, 0.28);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-5);
-  animation: palette-fade var(--duration-base) var(--ease-out);
+  padding: 28px;
+  background: rgba(10, 10, 12, 0.5);
+  backdrop-filter: blur(6px);
+  animation: preview-fade 180ms var(--ease-out);
 }
 
 .preview {
   display: flex;
   flex-direction: column;
-  width: min(920px, 100%);
-  height: min(760px, 100%);
+  width: 100%;
+  max-width: 1320px;
+  height: 100%;
   background: var(--bg-raised);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
+  box-shadow: 0 24px 64px -12px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  animation: palette-rise var(--duration-base) var(--ease-out);
+  animation: preview-rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes preview-fade {
+  from { opacity: 0; }
+}
+
+@keyframes preview-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
 }
 
 .preview-head {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  gap: var(--space-2);
+  height: 52px;
+  padding: 0 10px 0 14px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
-.preview-title {
+.preview-icon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  color: var(--tone, var(--text-tertiary));
+  background: color-mix(in srgb, var(--tone, var(--text-tertiary)) 12%, transparent);
+}
+
+.preview-icon[data-kind='pdf'] { --tone: var(--tone-important); }
+.preview-icon[data-kind='sheet'] { --tone: var(--tone-billing); }
+.preview-icon:is([data-kind='image'], [data-kind='svg']) { --tone: var(--tone-work); }
+.preview-icon:is([data-kind='video'], [data-kind='audio']) { --tone: var(--tone-newsletter); }
+
+.preview-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
   flex: 1;
   min-width: 0;
+  margin-left: 4px;
+}
+
+.preview-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-base);
+  font-weight: 500;
   color: var(--text-primary);
 }
 
-.preview-head button {
-  display: inline-flex;
+.preview-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-group {
+  display: flex;
   align-items: center;
-  justify-content: center;
+  height: 30px;
+  padding: 0 2px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border);
+  flex-shrink: 0;
+}
+
+.preview-group button,
+.preview-close {
+  display: grid;
+  place-items: center;
   min-width: 26px;
-  min-height: 26px;
-  padding: 0 var(--space-2);
+  height: 26px;
+  padding: 0 4px;
   border-radius: var(--radius-sm);
   color: var(--text-tertiary);
-  font-size: var(--text-sm);
-  flex-shrink: 0;
   transition:
     background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
 }
 
-.preview-head button:hover {
+.preview-group button:hover,
+.preview-close:hover {
   color: var(--text-primary);
+  background: var(--border-faint);
+}
+
+.preview-zoom {
+  min-width: 46px !important;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary) !important;
+}
+
+.preview-count {
+  min-width: 44px;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.preview-close {
+  width: 30px;
+  height: 30px;
+  margin-left: 2px;
 }
 
 .preview-stage {
+  position: relative;
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-sunken);
+  animation: preview-swap 160ms var(--ease-out);
+}
+
+@keyframes preview-swap {
+  from { opacity: 0; }
 }
 
 .preview-frame {
+  flex: 1;
   width: 100%;
-  height: 100%;
-  min-height: 400px;
   border: none;
+  background: var(--bg-raised);
+}
+
+.preview-note {
+  margin: auto;
+  padding: var(--space-4);
+  font-size: var(--text-base);
+  color: var(--text-tertiary);
+}
+
+.preview-loading {
+  animation: preview-fade 300ms 150ms both;
+}
+
+.preview-fallback {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: 360px;
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--text-tertiary);
+}
+
+.preview-fallback-title {
+  margin-top: var(--space-2);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.preview-fallback-detail {
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.preview-fallback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-2);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.preview-fallback button:hover {
+  background: var(--border-faint);
+}
+
+/* PDF: pages on the sunken stage, like Preview. */
+.pdf-scroll,
+.image-scroll,
+.sheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+}
+
+.pdf-scroll {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px 32px;
+}
+
+.pdf-page {
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+  position: relative;
+  flex-shrink: 0;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.14);
+}
+
+.pdf-page canvas {
   display: block;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity 180ms var(--ease-out);
+}
+
+.pdf-page[data-painted='true'] canvas {
+  opacity: 1;
+}
+
+/* pdf.js text layer (from pdf_viewer.css), so text selects and copies. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  transform-origin: 0 0;
+  -webkit-text-size-adjust: none;
+  forced-color-adjust: none;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer span[role='img'] {
+  user-select: none;
+  cursor: default;
+}
+
+.textLayer ::selection {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: transparent;
+}
+
+.textLayer br::selection {
   background: transparent;
-  /* Without this the frame paints an opaque white canvas in dark mode. */
-  color-scheme: normal;
+}
+
+.textLayer .endOfContent {
+  display: block;
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  cursor: default;
+  user-select: none;
+}
+
+.textLayer.selecting .endOfContent {
+  top: 0;
+}
+
+/* Image: centred, a click toggles actual size. */
+.image-scroll {
+  display: flex;
+  padding: 16px;
+}
+
+.image-view {
+  margin: auto;
+  flex-shrink: 0;
+  max-width: none;
+  border-radius: 2px;
+  /* Transparent pixels show as a quiet checkerboard. */
+  background: repeating-conic-gradient(rgba(128, 128, 128, 0.14) 0% 25%, transparent 0% 50%) 0 0 / 16px 16px;
+  box-shadow: 0 0 0 1px var(--border), 0 2px 10px rgba(0, 0, 0, 0.12);
+  animation: preview-fade 200ms var(--ease-out);
+}
+
+.image-view[data-zoomable='true'] {
+  cursor: zoom-in;
+}
+
+.image-view[data-zoomed='true'] {
+  cursor: zoom-out;
+}
+
+/* Spreadsheet: a quiet grid with sticky letters and row numbers. */
+.sheet-view {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-raised);
+}
+
+.sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--border);
+}
+
+.sheet-corner {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  height: 100%;
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+}
+
+.sheet-colhead,
+.sheet-rowhead {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-colhead {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid var(--border-faint);
+}
+
+.sheet-row {
+  position: absolute;
+  left: 0;
+}
+
+.sheet-rowhead {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  background: var(--bg-sunken);
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.sheet-colhead[data-active='true'],
+.sheet-rowhead[data-active='true'] {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--bg-sunken));
+}
+
+.sheet-cell {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding: 0 8px;
+  line-height: 26px;
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid var(--border-faint);
+  border-bottom: 1px solid var(--border-faint);
+  cursor: cell;
+}
+
+.sheet-cell[data-num='true'] {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-row[data-first='true'] .sheet-cell {
+  font-weight: 500;
+}
+
+.sheet-cell[data-selected='true'] {
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.sheet-cellbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 30px;
+  padding: 0 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.sheet-ref {
+  min-width: 36px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet-value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  user-select: text;
+}
+
+.sheet-cellbar[data-empty='true'] .sheet-value {
+  color: var(--text-quaternary);
+  font-size: var(--text-xs);
+}
+
+.sheet-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 34px;
+  padding: 0 8px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-sunken);
+  flex-shrink: 0;
+}
+
+.sheet-tabs {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+.sheet-tab {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.sheet-tab:hover {
+  color: var(--text-primary);
+}
+
+.sheet-tab[aria-selected='true'] {
+  color: var(--text-primary);
+  background: var(--bg-raised);
+  box-shadow: 0 0 0 1px var(--border), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.sheet-note {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview-backdrop,
+  .preview,
+  .preview-stage,
+  .image-view {
+    animation: none;
+  }
+  .attachment-card,
+  .attachment-card:hover {
+    transform: none;
+  }
 }
 
 /* ---- settings ---- */
@@ -2826,34 +3365,6 @@ div.compose-body[data-empty='true']::before {
   display: flex;
   justify-content: flex-end;
   margin-top: var(--space-3);
-}
-
-.pdf-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
-.pdf-page {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  margin: 0 auto;
-  background: #fff;
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-sm);
-}
-
-.preview-note {
-  padding: var(--space-4);
-  font-size: var(--text-base);
-  color: var(--text-tertiary);
-}
-
-.preview-error {
-  color: var(--flag);
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
 }
 
 /* The infinite list's loader: centred under the last row while older mail loads. */

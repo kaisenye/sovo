@@ -43,6 +43,7 @@
     "nodemailer": "^9.0.3",
     "openai": "7.45.1",
     "pdfjs-dist": "^6.2.108",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zustand": "^5.0.14"
   },
   "devDependencies": {

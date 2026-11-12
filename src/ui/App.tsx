@@ -38,7 +38,8 @@ import { Picker, type PickerItem } from './views/Picker'
 import { RowMenu } from './views/RowMenu'
 import { rowMenuEntries } from './rowMenu'
 import { ConfirmDialog } from './views/ConfirmDialog'
-import { AttachmentPreview } from './views/AttachmentPreview'
+import { AttachmentViewer } from './views/AttachmentPreview'
+import { usePreview } from './attachmentKind'
 import { ZeroModal } from './views/ZeroModal'
 import { CleanModal } from './views/CleanModal'
 import { ZeroState } from './views/ZeroState'
@@ -114,7 +115,7 @@ type Overlay =
   | { kind: 'clean'; folderId: number }
   /** Right-click on a list row: its actions and their shortcuts. */
   | { kind: 'rowMenu'; x: number; y: number; row: MessageListRow }
-  /** ⌘O on an attachment: the in-app preview, or a confirmation before the OS opens it. */
+  /** ⌘O on a file with no in-app preview: a confirmation before the OS opens it. */
   | { kind: 'attachment'; attachment: Attachment; canPreview: boolean }
 
 function threadKeyOf(t: { threadId: string; messageId: number; accountId?: number }): string {
@@ -1546,9 +1547,10 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   // Tasks counts as 'modal': it replaces the mail pane, and list keys (e, !,
   // ⌘A, Tab, …) would otherwise act on the hidden mail list.
   const surface = { compose: !!compose, tasksOpen, openThread: !!openThread, searchOpen: activeFolderId === SEARCH_VIEW_ID }
+  const previewOpen = usePreview((s) => s.list.length > 0)
   const mode: Mode = appMode({
     ...surface,
-    overlayOpen: !!(paletteOpen || settingsOpen || shortcutsOpen || overlay)
+    overlayOpen: !!(paletteOpen || settingsOpen || shortcutsOpen || overlay || previewOpen)
   })
   // The palette's own mode is always 'modal'; its commands need the one under it.
   const paletteMode: Mode = baseMode(surface)
@@ -2093,7 +2095,11 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
               onDone={() => void triageFromThread(doneSelected)}
               onStar={() => void starFromThread()}
               onToggleRead={() => void unreadFromThread()}
-              onAttachment={(attachment, canPreview) => setOverlay({ kind: 'attachment', attachment, canPreview })}
+              onAttachment={(attachment, canPreview, all) =>
+                canPreview
+                  ? usePreview.getState().open(all, Math.max(0, all.indexOf(attachment)))
+                  : setOverlay({ kind: 'attachment', attachment, canPreview })
+              }
               onLoaded={() => setLoadedThread(threadKeyOf(openThread))}
               starred={openStarred}
             />
@@ -2319,14 +2325,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           }}
         />
       )}
-      {overlay?.kind === 'attachment' && overlay.canPreview && (
-        <AttachmentPreview
-          attachment={overlay.attachment}
-          onClose={() => setOverlay(null)}
-          onSave={() => void window.api.saveAttachment(overlay.attachment.id)}
-          onOpen={() => void window.api.openAttachment(overlay.attachment.id)}
-        />
-      )}
+      {previewOpen && <AttachmentViewer />}
       {overlay?.kind === 'attachment' && !overlay.canPreview && (
         <ConfirmDialog
           title={`Open ${overlay.attachment.filename ?? 'untitled'}?`}
