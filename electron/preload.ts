@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { Folder, Message, MessageListRow } from '../src/core/store/types.js'
 import type { MoveTarget } from '../src/core/store/folderRoles.js'
 import type { SyncProgress } from '../src/core/sync/syncEngine.js'
@@ -490,6 +490,12 @@ const api = {
     ipcRenderer.invoke('compose:cancelSend', outboxId),
   pickAttachments: (): Promise<ComposeAttachment[]> =>
     ipcRenderer.invoke('compose:pickAttachments'),
+  /** Files dropped on compose. Folders and anything without a path are skipped. */
+  attachDropped: (files: File[]): Promise<ComposeAttachment[]> =>
+    ipcRenderer.invoke(
+      'compose:describeAttachments',
+      files.map((f) => webUtils.getPathForFile(f)).filter(Boolean)
+    ),
   listScheduled: (): Promise<ScheduledSend[]> => ipcRenderer.invoke('compose:listScheduled'),
   runSync: (): Promise<SyncRunResult> => ipcRenderer.invoke('sync:run'),
   /** Syncs one account by email, active or not (an IDLE push from it). */

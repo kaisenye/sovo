@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ClipboardEvent,
+  type DragEvent,
   type KeyboardEvent as ReactKeyboardEvent
 } from 'react'
 import { ArrowLeft, ArrowUp, Bold, ChevronDown, Clock, Ellipsis, Italic, Link2, List, ListOrdered, Paperclip, SendHorizontal, Sparkles, Trash2, Underline, X } from 'lucide-react'
@@ -20,7 +21,7 @@ import { Picker } from './Picker'
 import { RemindPicker } from './RemindPicker'
 import { RecipientField } from './RecipientField'
 import { instantIntro } from '../intro'
-import { useStore, type ComposeState } from '../store'
+import { useStore, type ComposeAttachment, type ComposeState } from '../store'
 import { composeDirty, type ComposeSnapshot } from '../composePlace'
 import type { Snippet, WriteAction } from '../../../electron/preload'
 
@@ -158,8 +159,9 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
   // selection — so capture the range before showing it.
   const pendingRange = useRef<Range | null>(null)
 
+  // A selection becomes the link text; a bare caret gets the URL itself.
   const onLink = useCallback(() => {
-    pendingRange.current = captureSelection(editorRef.current)
+    pendingRange.current = captureSelection(editorRef.current) ?? captureCaret(editorRef.current)
     setLinking(true)
   }, [])
 
@@ -317,12 +319,52 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
     [snippets, insertSnippet]
   )
 
+  /** Adds files once each: picking or dropping the same file again is a no-op. */
+  const addAttachments = useCallback(
+    (files: ComposeAttachment[]) => {
+      const have = new Set(compose.attachments.map((a) => a.path))
+      const fresh = files.filter((f) => !have.has(f.path) && have.add(f.path))
+      if (fresh.length) updateCompose({ attachments: [...compose.attachments, ...fresh] })
+    },
+    [compose.attachments, updateCompose]
+  )
+
   const onPickFiles = useCallback(async () => {
-    const picked = await window.api.pickAttachments()
-    if (picked.length) {
-      updateCompose({ attachments: [...compose.attachments, ...picked] })
+    addAttachments(await window.api.pickAttachments())
+  }, [addAttachments])
+
+  // Files dragged over the card: a counter, since dragenter / dragleave fire
+  // for every child the pointer crosses.
+  const dragDepth = useRef(0)
+  const [dropping, setDropping] = useState(false)
+  const hasFiles = (e: DragEvent): boolean => e.dataTransfer.types.includes('Files')
+  const dropHandlers = {
+    onDragEnter: (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      dragDepth.current += 1
+      setDropping(true)
+    },
+    onDragOver: (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      e.dataTransfer.dropEffect = 'copy'
+    },
+    onDragLeave: (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      dragDepth.current = Math.max(0, dragDepth.current - 1)
+      if (!dragDepth.current) setDropping(false)
+    },
+    // Attach, never inline: without this the editor would paste the file in.
+    onDrop: (e: DragEvent) => {
+      if (!hasFiles(e)) return
+      e.preventDefault()
+      dragDepth.current = 0
+      setDropping(false)
+      const files = [...e.dataTransfer.files]
+      if (files.length) void window.api.attachDropped(files).then(addAttachments)
     }
-  }, [compose.attachments, updateCompose])
+  }
 
   /** `sendAt` null = now: main adds the undo window, whose length is a setting it owns. */
   const persistAndQueue = useCallback(
@@ -433,9 +475,10 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
           setPickingSnippet(true)
         }
       },
-      { key: 'j', handler: openAi }
+      { key: 'j', handler: openAi },
+      { key: 'k', handler: () => !linking && onLink() }
     ],
-    [persistAndQueue, sending, introduce, openAi]
+    [persistAndQueue, sending, introduce, openAi, onLink, linking]
   )
   useCommandChord(chords)
 
@@ -479,7 +522,14 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
   }, [inline, compose.draftId])
 
   const card = (
-    <div className="compose-card" ref={cardRef} data-inline={inline} data-quote-folded={quoteFolded}>
+    <div
+      className="compose-card"
+      ref={cardRef}
+      data-inline={inline}
+      data-quote-folded={quoteFolded}
+      data-dropping={dropping || undefined}
+      {...dropHandlers}
+    >
       {compose.remindAt && (
         <div className="compose-remind">
           Remind me if no reply ·{' '}
@@ -647,7 +697,7 @@ export function Compose({ compose, me, cancelOnReplyDefault, onClose, onSent, in
           <TextColorButton onPick={onColor} placement="up" />
           <button
             type="button"
-            title="Insert link"
+            title="Insert link (⌘K)"
             aria-label="Insert link"
             onMouseDown={(e) => e.preventDefault()}
             onClick={onLink}

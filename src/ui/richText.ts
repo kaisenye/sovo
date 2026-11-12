@@ -275,7 +275,8 @@ export function captureCaret(el: HTMLElement | null): Range | null {
 export type LinkResult = 'ok' | 'bad-url' | 'no-selection'
 
 /**
- * Wraps `range` in a link. Returns why it failed rather than failing silently.
+ * Wraps `range` in a link, or with a bare caret inserts the URL itself as
+ * the link text. Returns why it failed rather than failing silently.
  */
 export function applyLink(
   el: HTMLDivElement | null,
@@ -293,7 +294,19 @@ export function applyLink(
   sel.removeAllRanges()
   sel.addRange(range)
 
+  if (range.collapsed) {
+    // Type the URL, select it, then link it: insertHTML would bake the
+    // editor's computed font and background into the anchor's style.
+    document.execCommand('insertText', false, trimmed)
+    const end = sel.getRangeAt(0)
+    const typed = document.createRange()
+    typed.setStart(end.endContainer, end.endOffset - trimmed.length)
+    typed.setEnd(end.endContainer, end.endOffset)
+    sel.removeAllRanges()
+    sel.addRange(typed)
+  }
   document.execCommand('createLink', false, trimmed)
+  sel.collapseToEnd()
   if (el) onChange(el.innerHTML)
   return 'ok'
 }

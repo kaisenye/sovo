@@ -44,7 +44,7 @@ const DEFAULT_MS: Record<ToastKind, number | null> = {
   undo: 5000
 }
 /** How long the exit plays before the toast is removed (matches the CSS). */
-export const TOAST_EXIT_MS = 220
+export const TOAST_EXIT_MS = 200
 /** More than this and the oldest go. */
 const MAX_TOASTS = 5
 

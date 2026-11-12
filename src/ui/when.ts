@@ -154,3 +154,15 @@ export const PRESETS: { id: string; label: string; at: (now: Date) => Date }[] =
     }
   }
 ]
+
+/** When a scheduled send goes out, as a toast says it: "today 5:00 PM", "tomorrow 8:00 AM", "Thu, Nov 13, 8:00 AM". */
+export function sendAtLabel(at: number, now: Date): string {
+  const d = new Date(at)
+  const time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+  const day = (x: Date): number => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  const days = Math.round((day(d) - day(now)) / 86_400_000)
+  if (days === 0) return `today ${time}`
+  if (days === 1) return `tomorrow ${time}`
+  const date = d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+  return `${date}, ${time}`
+}

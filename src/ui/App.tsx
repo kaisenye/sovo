@@ -68,6 +68,7 @@ import { applyTheme, isTheme, type Theme } from './theme'
 import { syncBar, trackSync, type SyncCounts } from './syncBar'
 import { composeInline as isInlineCompose } from './composePlace'
 import type { SwitchTarget } from './accountSwitch'
+import { sendAtLabel } from './when'
 import {
   back,
   backOutOf,
@@ -694,7 +695,8 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     const offSentStored = window.api.onSentStored(() => {
       const id = useStore.getState().activeFolderId
       if (id) void loadRows(id, true)
-      else void refreshUnread()
+      // Drafts' count too: a scheduled send leaves Drafts, a cancelled one returns.
+      void refreshUnread()
       // An open thread shows the send (or its undo) too.
       setSentVersion((v) => v + 1)
     })
@@ -1825,8 +1827,26 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
         await window.api.cancelSend(outboxId)
       }
       if (doneId == null) {
-        // A scheduled send is cancelled from ⌘K, not undone.
         if (immediate) pushUndo(`Sending “${subject}”`, undoMs, undoSend)
+        // Scheduled: say when, or it looks like nothing happened. Cancel puts
+        // the draft back in Drafts; later it is cancelled from ⌘K.
+        else
+          showToast({
+            key: `scheduled-${outboxId}`,
+            kind: 'success',
+            title: `Scheduled for ${sendAtLabel(Date.now() + undoMs, new Date())}`,
+            detail: subject,
+            duration: 6000,
+            action: {
+              label: 'Cancel',
+              run: () => {
+                dismissToast(`scheduled-${outboxId}`)
+                void window.api.cancelSend(outboxId).then((r) => {
+                  if (r.ok && r.cancelled) toast.info('Scheduled send cancelled', { detail: 'Back in Drafts' })
+                })
+              }
+            }
+          })
         return
       }
       // Send + Done. There is one undo slot, so one entry takes back both.

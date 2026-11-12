@@ -383,7 +383,12 @@ describe('command registry', () => {
 
 describe('withTiming', () => {
   it('opens the search page on /, leaves ⌘K to the palette, and toggles the contact pane on i', () => {
-    expect(COMMANDS.find((c) => c.id === 'palette.open')!.keys).toEqual([{ kind: 'mod', key: 'k' }])
+    expect(COMMANDS.find((c) => c.id === 'palette.open')!.keys).toEqual([
+      { kind: 'mod', key: 'k', modes: ['list', 'thread', 'search', 'modal'] }
+    ])
+    // In compose ⌘K is Insert link.
+    expect(buildChords('compose', { 'palette.open': () => {} }).map((c) => c.key)).toEqual([])
+    expect(COMMANDS.find((c) => c.id === 'compose.link')!.keys).toEqual([{ kind: 'mod', key: 'k', modes: ['compose'] }])
     const h = { 'search.open': () => {}, 'thread.contactPane': () => {} }
     expect(buildBindings('list', h).map((b) => [b.key, b.modes])).toEqual([
       ['/', ['list', 'thread']],

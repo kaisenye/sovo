@@ -6209,16 +6209,18 @@ button.sidebar-account svg {
 
 /* ---- toasts ----------------------------------------------------------------
    One stack, bottom centre of the content pane (right of the sidebar), never
-   the whole window. Newest in front; older cards peek out behind it, smaller,
-   and fan out on hover. Cards spring in and fade down and out. */
+   the whole window. Each card is a compact pill sized to its text. Newest in
+   front; older cards peek out behind it, smaller, and fan out on hover. Cards
+   rise and settle in (no overshoot) and fade down and out. */
 .toaster {
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
   position: fixed;
   bottom: var(--space-5);
   left: calc(var(--sidebar-width) + (100vw - var(--sidebar-width)) / 2);
   z-index: 300;
-  width: min(420px, calc(100vw - var(--sidebar-width) - 32px));
+  width: min(360px, calc(100vw - var(--sidebar-width) - 32px));
   transform: translateX(-50%);
-  transition: height 380ms cubic-bezier(0.25, 1, 0.5, 1);
+  transition: height 320ms var(--toast-ease);
 }
 
 .toaster[data-empty='true'] {
@@ -6227,45 +6229,46 @@ button.sidebar-account svg {
 
 .toast {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 50%;
   bottom: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 8px 8px 14px;
+  gap: 8px;
+  width: max-content;
+  max-width: 100%;
+  min-height: 32px;
+  padding: 4px 4px 4px 11px;
   overflow: hidden;
   background: var(--bg-raised);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
   box-shadow: var(--shadow-md);
   font-family: var(--font-ui);
   font-size: var(--text-sm);
   color: var(--text-primary);
-  transform: translateY(var(--y, 0px)) scale(var(--s, 1));
+  transform: translateX(-50%) translateY(var(--y, 0px)) scale(var(--s, 1));
   transform-origin: bottom center;
   transition:
-    transform 380ms cubic-bezier(0.34, 1.2, 0.64, 1),
-    opacity 220ms var(--ease-out);
+    transform 320ms var(--toast-ease),
+    opacity 200ms var(--toast-ease);
   /* backwards only: once in, transitions own the transform again. */
-  animation: toast-in 380ms cubic-bezier(0.34, 1.2, 0.64, 1) backwards;
+  animation: toast-in 320ms var(--toast-ease) backwards;
 }
 
 @keyframes toast-in {
   from {
     opacity: 0;
-    transform: translateY(calc(var(--y, 0px) + 16px)) scale(calc(var(--s, 1) * 0.96));
+    transform: translateX(-50%) translateY(calc(var(--y, 0px) + 10px)) scale(calc(var(--s, 1) * 0.98));
   }
 }
 
 .toast[data-leaving='true'] {
   opacity: 0;
   pointer-events: none;
-  transform: translateY(calc(var(--y, 0px) + 8px)) scale(calc(var(--s, 1) * 0.97));
+  transform: translateX(-50%) translateY(calc(var(--y, 0px) + 6px)) scale(calc(var(--s, 1) * 0.98));
   transition:
-    transform 220ms var(--ease-out),
-    opacity 220ms var(--ease-out);
+    transform 200ms cubic-bezier(0.4, 0, 1, 1),
+    opacity 160ms cubic-bezier(0.4, 0, 1, 1);
 }
 
 .toast[data-hidden='true'] {
@@ -6275,7 +6278,7 @@ button.sidebar-account svg {
 
 /* Cards behind the front one show only their edge. */
 .toast > * {
-  transition: opacity 200ms var(--ease-out);
+  transition: opacity 180ms var(--toast-ease);
 }
 
 .toast[data-behind='true'] > * {
@@ -6300,7 +6303,7 @@ button.sidebar-account svg {
 }
 
 .toast[data-kind='undo'] .toast-icon {
-  color: var(--accent);
+  color: var(--text-tertiary);
 }
 
 .toast-text {
@@ -6323,20 +6326,21 @@ button.sidebar-account svg {
 }
 
 .toast-detail {
-  margin-top: 2px;
+  margin-top: 1px;
   font-size: var(--text-xs);
   color: var(--text-tertiary);
 }
 
 .toast-action {
   flex-shrink: 0;
-  padding: 4px 10px;
+  height: 24px;
+  padding: 0 8px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   background: none;
   font-family: var(--font-ui);
   font-size: var(--text-sm);
-  font-weight: 600;
+  font-weight: 500;
   color: var(--accent);
   cursor: pointer;
   transition: background var(--duration-fast) var(--ease-out);
@@ -6346,21 +6350,30 @@ button.sidebar-account svg {
   background: var(--accent-soft);
 }
 
+/* Close stays out of the way until the card is pointed at. */
 .toast-close {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: 6px;
   background: none;
   color: var(--text-quaternary);
   cursor: pointer;
+  opacity: 0;
   transition:
+    opacity var(--duration-base) var(--ease-out),
     background var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out);
+}
+
+.toast:hover .toast-close,
+.toast-close:focus-visible {
+  opacity: 1;
 }
 
 .toast-close:hover {
@@ -6368,25 +6381,36 @@ button.sidebar-account svg {
   color: var(--text-secondary);
 }
 
-/* Undo's window draining away along the bottom edge. */
-.toast-progress {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 2px;
-  background: var(--accent);
-  opacity: 0.55;
-  transform-origin: left center;
+/* Undo's window: a hairline ring that empties, where the icon would be. */
+.toast-ring {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.toast-ring svg {
+  transform: rotate(-90deg);
+}
+
+.toast-ring circle {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.toast-ring-track {
+  stroke: var(--border);
+}
+
+.toast-ring-fill {
+  stroke: var(--text-tertiary);
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
   animation: toast-drain linear forwards;
 }
 
 @keyframes toast-drain {
-  from {
-    transform: scaleX(1);
-  }
   to {
-    transform: scaleX(0);
+    stroke-dashoffset: 1;
   }
 }
 
@@ -6397,7 +6421,7 @@ button.sidebar-account svg {
     transition: none;
     animation: none;
   }
-  .toast-progress {
+  .toast-ring-fill {
     animation: none;
   }
 }
@@ -6492,6 +6516,39 @@ button.sidebar-account svg {
 
 @media (prefers-reduced-motion: reduce) {
   .row-menu {
+    animation: none;
+  }
+}
+
+/* Files dragged over compose: a quiet dashed frame, dropped files attach. */
+.compose-card {
+  position: relative;
+}
+
+.compose-card[data-dropping]::after {
+  content: 'Drop to attach';
+  position: absolute;
+  inset: 4px;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--border-strong, var(--border));
+  border-radius: calc(var(--radius-lg) - 2px);
+  background: color-mix(in srgb, var(--bg-raised) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: 13px;
+  pointer-events: none;
+  z-index: 5;
+  animation: drop-in 120ms var(--ease-out);
+}
+
+@keyframes drop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compose-card[data-dropping]::after {
     animation: none;
   }
 }

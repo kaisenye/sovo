@@ -84,6 +84,7 @@ import { nativeQuote, quoteStyleFor } from '../src/core/send/nativeQuote.js'
 import { withMailFont } from '../src/core/send/mailFont.js'
 import {
   cancelOutbox,
+  cancelQueuedForDraft,
   enqueueOutbox,
   getOutbox,
   listScheduledOutbox,
@@ -565,17 +566,32 @@ export function registerIpc(): void {
     return s.ok ? unreadCounts(s.accountId) : {}
   })
 
+  const describeAttachment = (p: string) => ({
+    path: p,
+    filename: basename(p),
+    contentType: 'application/octet-stream',
+    size: statSync(p).size
+  })
+
   ipcMain.handle('compose:pickAttachments', async () => {
     const r = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections']
     })
     if (r.canceled) return []
-    return r.filePaths.map((p) => ({
-      path: p,
-      filename: basename(p),
-      contentType: 'application/octet-stream',
-      size: statSync(p).size
-    }))
+    return r.filePaths.map(describeAttachment)
+  })
+
+  // Dropped files: only regular files (a dropped folder has a path too).
+  ipcMain.handle('compose:describeAttachments', (_e, paths: unknown) => {
+    if (!Array.isArray(paths)) return []
+    return paths.flatMap((p) => {
+      if (typeof p !== 'string' || !p) return []
+      try {
+        return statSync(p).isFile() ? [describeAttachment(p)] : []
+      } catch {
+        return []
+      }
+    })
   })
 
   ipcMain.handle(
@@ -798,6 +814,7 @@ export function registerIpc(): void {
           ? JSON.stringify(payload.attachments)
           : null
       })
+      if (cancelQueuedForDraft(payload.draftId).length) sentChanged(a.accountId)
       const row = enqueueOutbox({
         account_id: a.accountId,
         draft_message_id: payload.draftId,
@@ -825,6 +842,8 @@ export function registerIpc(): void {
           console.error('[send] local Sent copy not stored:', err)
         }
       }
+      // Scheduled for later: no Sent copy yet, but its draft just left Drafts.
+      else sentChanged(a.accountId)
       return { ok: true as const, outboxId: row.id, sendAt: row.send_at }
     } catch (e) {
       return { ok: false as const, error: (e as Error).message }

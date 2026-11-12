@@ -107,6 +107,7 @@ export type CommandId =
   | 'compose.focusSubject'
   | 'compose.snippet'
   | 'compose.ai'
+  | 'compose.link'
   | 'format.bold'
   | 'format.italic'
   | 'format.underline'
@@ -137,7 +138,8 @@ export const COMMANDS: Command[] = [
     id: 'palette.open',
     title: 'Search and command menu',
     group: 'General',
-    keys: [{ kind: 'mod', key: 'k' }]
+    // In compose ⌘K is Insert link; the handler also checks compose itself.
+    keys: [{ kind: 'mod', key: 'k', modes: ['list', 'thread', 'search', 'modal'] }]
   },
   { id: 'search.open', title: 'Search', group: 'General', palette: true, keys: [{ kind: 'key', key: '/', modes: LIST_THREAD }] },
   {
@@ -296,6 +298,7 @@ export const COMMANDS: Command[] = [
   { id: 'compose.focusSubject', title: 'Go to Subject', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 's', shift: true, modes: ['compose'] }] },
   { id: 'compose.snippet', title: 'Insert snippet…', group: 'Compose', external: true, keys: [{ kind: 'mod', key: ';', modes: ['compose'] }] },
   { id: 'compose.ai', title: 'Write with AI…', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 'j', modes: ['compose'] }] },
+  { id: 'compose.link', title: 'Insert link', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 'k', modes: ['compose'] }] },
   { id: 'compose.remind', title: 'Remind me if no reply', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 'h', shift: true, modes: ['compose'] }] },
   { id: 'format.bold', title: 'Bold', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 'b', modes: ['compose'] }] },
   { id: 'format.italic', title: 'Italic', group: 'Compose', external: true, keys: [{ kind: 'mod', key: 'i', modes: ['compose'] }] },

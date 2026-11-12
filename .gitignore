@@ -10,3 +10,4 @@ dist/
 .pnpm-store/
 src/ui/out/
 release/
+plans/

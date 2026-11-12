@@ -13,9 +13,9 @@ const ICONS: Record<ToastKind, typeof Info> = {
 /** Toasts drawn while stacked; older ones wait behind these. */
 const VISIBLE = 3
 /** Collapsed: each older card peeks out this far above the one in front. */
-const PEEK = 8
+const PEEK = 6
 /** Expanded (hover): the gap between cards. */
-const GAP = 8
+const GAP = 6
 
 /**
  * The toast stack, bottom centre of the content pane. Newest in front; older
@@ -44,10 +44,10 @@ export function Toaster() {
     const i = live.indexOf(t)
     const depth = i < 0 ? 0 : i
     const y = open ? -offset : -depth * PEEK
-    if (!t.leaving) offset += (heights.current.get(t.id) ?? 52) + GAP
+    if (!t.leaving) offset += (heights.current.get(t.id) ?? 36) + GAP
     return { t, depth, y }
   })
-  const front = heights.current.get(live[0]?.id ?? -1) ?? 52
+  const front = heights.current.get(live[0]?.id ?? -1) ?? 36
 
   return (
     <section
@@ -119,7 +119,25 @@ function ToastCard({
       role={t.kind === 'error' || t.kind === 'warning' ? 'alert' : 'status'}
       style={style}
     >
-      <Icon className="toast-icon" size={15} strokeWidth={2} aria-hidden="true" />
+      {/* Undo's window drains as a thin ring round its icon: the move lands on the server when it closes. */}
+      {t.kind === 'undo' && left !== null ? (
+        <span className="toast-ring" aria-hidden="true">
+          <svg viewBox="0 0 16 16" width="16" height="16">
+            <circle className="toast-ring-track" cx="8" cy="8" r="6.5" />
+            <circle
+              key={t.endsAt}
+              className="toast-ring-fill"
+              cx="8"
+              cy="8"
+              r="6.5"
+              pathLength={1}
+              style={{ animationDuration: `${left}ms` } as CSSProperties}
+            />
+          </svg>
+        </span>
+      ) : (
+        <Icon className="toast-icon" size={13} strokeWidth={2} aria-hidden="true" />
+      )}
       <div className="toast-text">
         <span className="toast-title">{t.title}</span>
         {t.detail && <span className="toast-detail">{t.detail}</span>}
@@ -137,17 +155,8 @@ function ToastCard({
         </button>
       )}
       <button type="button" className="toast-close" aria-label="Dismiss" onClick={() => dismissToast(t.id)}>
-        <X size={13} strokeWidth={2} />
+        <X size={12} strokeWidth={2} />
       </button>
-      {/* Undo's window, draining: the move lands on the server when it empties. */}
-      {t.kind === 'undo' && left !== null && (
-        <span
-          key={t.endsAt}
-          className="toast-progress"
-          style={{ animationDuration: `${left}ms` } as CSSProperties}
-          aria-hidden="true"
-        />
-      )}
     </div>
   )
 }

@@ -538,6 +538,16 @@ function accountEmail(accountId: number): string | null {
   return row?.email ?? null
 }
 
+/**
+ * A draft queued in the outbox (scheduled, or inside its undo window) is a
+ * send, not a draft: listing it invites sending it a second time. Cancelling
+ * the send brings it back.
+ */
+const NOT_QUEUED = `id NOT IN (
+  SELECT draft_message_id FROM outbox
+  WHERE status IN ('pending', 'sending') AND draft_message_id IS NOT NULL
+)`
+
 /** Mirrors listDrafts' WHERE exactly, including the server-twin suppression. */
 export function countDrafts(accountId: number, serverFolderId: number | null): number {
   return (
@@ -548,7 +558,8 @@ export function countDrafts(accountId: number, serverFolderId: number | null): n
            AND (folder_id IS NULL OR message_id IS NULL OR message_id NOT IN (
              SELECT message_id FROM messages
              WHERE account_id = ? AND folder_id IS NULL AND message_id IS NOT NULL
-           ))`
+           ))
+           AND ${NOT_QUEUED}`
       )
       .get(accountId, serverFolderId, accountId) as { c: number }
   ).c
@@ -568,6 +579,7 @@ export function listDrafts(
            SELECT message_id FROM messages
            WHERE account_id = ? AND folder_id IS NULL AND message_id IS NOT NULL
          ))
+         AND ${NOT_QUEUED}
        ORDER BY date DESC LIMIT ? OFFSET ?`
     )
     .all(accountId, serverFolderId, accountId, limit, offset) as MessageListRow[]

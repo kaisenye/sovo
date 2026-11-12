@@ -120,6 +120,19 @@ export function cancelOutbox(id: number): boolean {
   return true
 }
 
+/**
+ * Pending sends of this draft. Sending a draft again (a reschedule, or one
+ * reopened while queued) replaces its earlier send rather than adding a twin.
+ */
+export function cancelQueuedForDraft(draftId: number): number[] {
+  const ids = (
+    getDb()
+      .prepare(`SELECT id FROM outbox WHERE draft_message_id = ? AND status = 'pending'`)
+      .all(draftId) as { id: number }[]
+  ).map((r) => r.id)
+  return ids.filter((id) => cancelOutbox(id))
+}
+
 export function listPendingOutbox(accountId: number): OutboxRow[] {
   return getDb()
     .prepare(

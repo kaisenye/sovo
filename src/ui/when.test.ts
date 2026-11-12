@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseWhen, PRESETS } from './when.js'
+import { parseWhen, PRESETS, sendAtLabel } from './when.js'
 
 // Thursday 29 October 2026, 10:00 local.
 const NOW = new Date(2026, 9, 29, 10, 0)
@@ -39,5 +39,14 @@ describe('parseWhen', () => {
 
   it('has presets that all land in the future', () => {
     for (const p of PRESETS) expect(p.at(NOW).getTime()).toBeGreaterThan(NOW.getTime())
+  })
+})
+
+describe('sendAtLabel', () => {
+  const at = (d: number, h: number) => new Date(2026, 9, d, h, 0).getTime()
+  it('names today and tomorrow, dates further out', () => {
+    expect(sendAtLabel(at(29, 17), NOW)).toMatch(/^today 5:00/)
+    expect(sendAtLabel(at(30, 8), NOW)).toMatch(/^tomorrow 8:00/)
+    expect(sendAtLabel(at(31, 8), NOW)).toMatch(/Sat.*31.*8:00/)
   })
 })
