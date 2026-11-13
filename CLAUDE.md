@@ -60,6 +60,7 @@ Ordered `Processor[]` mutate `MsgCtx.draft`. Failures skip except `parse`. FTS5 
 ## Lists and toasts
 
 - Lists are infinite, not paged: `MessageList` calls `onLoadMore` when the rendered rows come within `LOAD_AHEAD` of the end; App's `loadMore` appends `fetchRows(folder, rows.length)` and, when SQLite runs dry, asks the server (`loadOlder`) before marking the view `exhausted`. A refresh (`loadRows(…, true)`, `refreshRows`) re-reads every row already loaded.
+- Opening a thread paints it read before main answers (`markThreadSeen`): the row's flags and its `thread_unread`, which the dot reads. Every list read goes through `LocalReads` (`src/ui/localRead.ts`), so a read already in flight when the thread opened cannot repaint it unread.
 - Every transient message is a toast (`src/ui/toasts.ts`, drawn by `views/Toaster.tsx`, bottom centre of the content pane): action errors (`setActionError`), a failed sync (sticky, Retry), a reconnect prompt (sticky, Sign in) and the undo window (`kind: 'undo'`, never paused on hover). Same `key` replaces in place. No banners.
 
 ## Keyboard

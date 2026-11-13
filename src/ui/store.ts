@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { Folder, MessageListRow } from '../core/store/types'
+import { markThreadRowsSeen } from './localRead'
 import type { Task } from '../../electron/preload'
 import type { ChipId } from './chips'
 import type { SearchCache } from './searchKeys'
@@ -91,7 +92,8 @@ interface AppState {
   removeRows: (ids: number[]) => { index: number; row: MessageListRow }[]
   restoreRows: (removed: { index: number; row: MessageListRow }[]) => void
   updateRowFlags: (id: number, flags: string) => void
-  markRowSeen: (id: number) => void
+  /** Paints every row of the thread read (flags and unread count), here and in the search cache. */
+  markThreadSeen: (threadId: string, accountId?: number) => void
   setSelectedIndex: (i: number) => void
   /** Hover moves the cursor only; the shift-click anchor stays where you clicked. */
   hoverCursor: (i: number) => void
@@ -248,15 +250,13 @@ export const useStore = create<AppState>((set, get) => ({
     }),
   updateRowFlags: (id, flags) =>
     set((s) => ({ rows: s.rows.map((r) => (r.id === id ? { ...r, flags } : r)) })),
-  markRowSeen: (id) =>
-    set((s) => ({
-      rows: s.rows.map((r) => {
-        if (r.id !== id) return r
-        const flags: string[] = r.flags ? JSON.parse(r.flags) : []
-        if (flags.some((f) => f.toLowerCase() === '\\seen')) return r
-        return { ...r, flags: JSON.stringify([...flags, '\\Seen']) }
-      })
-    })),
+  markThreadSeen: (threadId, accountId) =>
+    set((s) => {
+      const rows = markThreadRowsSeen(s.rows, threadId, accountId)
+      const emails = s.searchCache && markThreadRowsSeen(s.searchCache.emails, threadId, accountId)
+      if (rows === s.rows && (!s.searchCache || emails === s.searchCache.emails)) return {}
+      return { rows, ...(s.searchCache && emails ? { searchCache: { ...s.searchCache, emails } } : {}) }
+    }),
   // A plain click re-anchors the range: shift extends from the last row the
   // user pointed at, not from a checkbox they may have since cleared.
   setSelectedIndex: (selectedIndex) => set({ selectedIndex, lastCheckedIndex: selectedIndex }),

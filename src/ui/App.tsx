@@ -70,6 +70,7 @@ import { syncBar, trackSync, type SyncCounts } from './syncBar'
 import { composeInline as isInlineCompose } from './composePlace'
 import type { SwitchTarget } from './accountSwitch'
 import { sendAtLabel } from './when'
+import { LocalReads } from './localRead'
 import {
   back,
   backOutOf,
@@ -156,7 +157,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
     openThreadView,
     closeThread,
     updateRowFlags,
-    markRowSeen,
+    markThreadSeen,
     removeRows,
     setBoot,
     setFolders,
@@ -468,16 +469,24 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
   )
 
   /** Rows `offset`… of a view, at most `limit`. The list grows by appending what comes after the rows it has. */
+  /** Threads read on screen, so a list read already in flight cannot paint them unread again. */
+  const localReads = useRef(new LocalReads())
   const fetchRows = useCallback(
     async (folderId: number, offset: number, limit = PAGE_SIZE): Promise<MessageListRow[]> => {
       // The search page's own results, so j/k and "15 / 201" work in a thread
       // opened from it, and a background refresh keeps them.
       if (folderId === SEARCH_VIEW_ID) return offset === 0 ? (useStore.getState().searchCache?.emails ?? []) : []
+      const issued = localReads.current.issued()
       // Reminders is one local list, not an IMAP folder: all at once, no server.
-      if (folderId === REMINDERS_VIEW_ID) return offset === 0 ? window.api.listReminders() : []
-      return isDraftsFolder(folderId)
-        ? window.api.listDrafts(limit, offset)
-        : window.api.listMessages(folderId, limit, offset, currentQuery(folderId))
+      const rows = await (folderId === REMINDERS_VIEW_ID
+        ? offset === 0
+          ? window.api.listReminders()
+          : []
+        : isDraftsFolder(folderId)
+          ? window.api.listDrafts(limit, offset)
+          : window.api.listMessages(folderId, limit, offset, currentQuery(folderId)))
+      // A thread opened while this read was in flight stays read.
+      return localReads.current.apply(rows, issued)
     },
     [isDraftsFolder, currentQuery]
   )
@@ -751,12 +760,18 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
 
   const openThreadAndRead = useCallback(
     (threadId: string, messageId: number, accountId?: number) => {
+      // Read at once, before main answers: the dot goes as the thread opens.
+      localReads.current.mark(threadId, accountId)
+      markThreadSeen(threadId, accountId)
       openThreadView(threadId, messageId, accountId)
       void window.api.markThreadRead(threadId, accountId).then((res) => {
-        if (res.ok) for (const id of res.changed) markRowSeen(id)
+        if (!res.ok) return
+        // Again: a list read answered in between may have repainted it unread.
+        markThreadSeen(threadId, accountId)
+        if (res.changed.length) void refreshUnread()
       })
     },
-    [openThreadView, markRowSeen]
+    [openThreadView, markThreadSeen, refreshUnread]
   )
 
   const [workspace, setWorkspace] = useState<Workspace | null>(null)
@@ -1117,9 +1132,10 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       for (const [accountId, threadIds] of groups) {
         if (read) {
           for (const threadId of threadIds) {
+            localReads.current.mark(threadId, accountId)
+            markThreadSeen(threadId, accountId)
             const res = await window.api.markThreadRead(threadId, accountId)
             if (!res.ok) return setActionError(res.error)
-            for (const id of res.changed) markRowSeen(id)
           }
         } else {
           const res = await window.api.markThreadsUnread(threadIds, accountId)
@@ -1129,7 +1145,7 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
       await refreshRows()
       void refreshUnread()
     },
-    [targetRows, markRowSeen, refreshRows, refreshUnread, setActionError]
+    [targetRows, markThreadSeen, refreshRows, refreshUnread, setActionError]
   )
 
   /** Linear-style: u toggles read ↔ unread on selection (or focused row). */
