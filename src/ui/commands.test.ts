@@ -270,7 +270,9 @@ describe('command registry', () => {
       [']', false, false],
       ['ArrowRight', false, false]
     ])
-    expect(buildChords('compose', h)).toEqual([])
+    // Only ⌘W: in compose it closes compose (as Esc does), keeping the draft.
+    expect(buildChords('compose', h).map((c) => c.key)).toEqual(['w'])
+    expect(buildChords('modal', h).map((c) => c.key)).toEqual(['w'])
     const tabs = shortcutGroups().find((g) => g.title === 'Tabs')!
     expect(tabs.items.find((i) => i.label === 'Go to tab 1–9')).toEqual({ label: 'Go to tab 1–9', keys: ['⌘', '1–9'] })
   })

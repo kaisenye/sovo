@@ -1607,7 +1607,14 @@ export default function App({ onSwitchAccount, onPainted }: AppProps) {
           if (ws && v) showWorkspace(openTab(ws, { ...v, thread: null }))
         },
         // The last tab closes the window, as in a browser.
-        'tab.close': () => {
+        'tab.close': ({ mode: m }) => {
+          // Compose and every dialog close on Esc (compose keeps the draft),
+          // so ⌘W there means the same Esc, like closing a window on macOS.
+          if (m === 'compose' || m === 'modal') {
+            const target = document.activeElement ?? document.body
+            target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }))
+            return
+          }
           const ws = workspaceRef.current
           if (!ws) return
           const next = closeTab(ws)

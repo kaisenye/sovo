@@ -189,7 +189,8 @@ export const COMMANDS: Command[] = [
   { id: 'go.reminders', title: 'Go to Reminders', group: 'Navigation', palette: true, keys: [{ kind: 'seq', keys: ['g', 'h'], modes: ['list'] }] },
 
   { id: 'tab.new', title: 'New tab', group: 'Tabs', palette: true, keys: [{ kind: 'mod', key: 't', modes: NAV_MODES }] },
-  { id: 'tab.close', title: 'Close tab', group: 'Tabs', palette: true, keys: [{ kind: 'mod', key: 'w', modes: NAV_MODES }] },
+  // Every mode: ⌘W closes whatever is in front (a dialog, compose, the tab, then the window).
+  { id: 'tab.close', title: 'Close tab', group: 'Tabs', palette: true, keys: [{ kind: 'mod', key: 'w' }] },
   { id: 'tab.next', title: 'Next tab', group: 'Tabs', keys: [{ kind: 'ctrl', key: 'Tab', modes: NAV_MODES }] },
   { id: 'tab.prev', title: 'Previous tab', group: 'Tabs', keys: [{ kind: 'ctrl', key: 'Tab', shift: true, modes: NAV_MODES }] },
   ...DIGITS.map(
