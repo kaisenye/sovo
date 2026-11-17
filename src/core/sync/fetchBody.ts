@@ -18,6 +18,8 @@ export async function ensureBody(
   const loc = getMessageLocation(messageId)
   if (!loc) return getMessage(messageId)
   if (loc.body_fetched === 1) return getMessage(messageId)
+  // A local copy (a send, an optimistic move) has no server uid to fetch yet.
+  if (loc.uid == null) return getMessage(messageId)
 
   // Pooled: this used to open a connection per message, so opening an
   // unfetched message cost a full ~5s cold round trip.

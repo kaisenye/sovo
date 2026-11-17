@@ -1,4 +1,4 @@
-import { mkdirSync, rmSync, writeFileSync } from 'fs'
+import { constants, copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from 'fs'
 import { basename, join } from 'path'
 import { getDb } from './db.js'
 
@@ -61,6 +61,25 @@ export function writeAttachment(
   mkdirSync(dir, { recursive: true })
   const path = join(dir, `${index}-${safeFilename(filename)}`)
   writeFileSync(path, content)
+  return path
+}
+
+/**
+ * Copies a file the user attached into the message's folder, like
+ * writeAttachment, so the copy still opens after the original moves. A clone
+ * on APFS, so a big file costs no time. Null past the size cap.
+ */
+export function copyAttachment(
+  messageId: number,
+  index: number,
+  filename: string | null,
+  source: string
+): string | null {
+  if (statSync(source).size > MAX_ATTACHMENT_BYTES) return null
+  const dir = messageDir(messageId)
+  mkdirSync(dir, { recursive: true })
+  const path = join(dir, `${index}-${safeFilename(filename)}`)
+  copyFileSync(source, path, constants.COPYFILE_FICLONE)
   return path
 }
 

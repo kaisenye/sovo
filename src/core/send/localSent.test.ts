@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { mkdtempSync } from 'fs'
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { closeDb, getDb, initDb } from '../store/db.js'
-import { getThread, ownSentId, upsertMessage } from '../store/repo.js'
+import { getThread, listAttachments, ownSentId, upsertMessage } from '../store/repo.js'
+import { attachmentPath, initAttachmentStore } from '../store/attachments.js'
 import { hasSentCopy } from './sentRefresh.js'
 import { listView } from '../store/listRows.js'
 import { addLocalSentCopy, addressJson, outboxMessageId } from './localSent.js'
@@ -113,5 +114,66 @@ describe('the local Sent copy', () => {
       { address: 'bob@y.test', name: null }
     ])
     expect(addressJson(null)).toBe('[]')
+  })
+})
+
+describe('attachments on the local Sent copy', () => {
+  let dir: string
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'localsent-files-'))
+    initAttachmentStore(dir)
+  })
+
+  const attach = (...names: string[]) =>
+    JSON.stringify(
+      names.map((name) => {
+        const path = join(dir, name)
+        if (name !== 'gone.pdf') writeFileSync(path, `bytes of ${name}`)
+        return { path, filename: name, contentType: 'application/pdf', size: 12 }
+      })
+    )
+  const bodyFetched = (id: number) =>
+    (getDb().prepare('SELECT body_fetched FROM messages WHERE id = ?').get(id) as { body_fetched: number }).body_fetched
+
+  it('shows the files at once, and they open after the originals move', () => {
+    const id = addLocalSentCopy(queue({ attachments: attach('quote.pdf', 'specs.xlsx') }), ME)!
+    expect(listAttachments(id).map((a) => [a.filename, a.mime])).toEqual([
+      ['quote.pdf', 'application/pdf'],
+      ['specs.xlsx', 'application/pdf']
+    ])
+    // The local body and files are the sent ones: nothing to fetch.
+    expect(bodyFetched(id)).toBe(1)
+    rmSync(join(dir, 'quote.pdf'))
+    const stored = attachmentPath(listAttachments(id)[0].id)!
+    expect(readFileSync(stored, 'utf8')).toBe('bytes of quote.pdf')
+  })
+
+  it('lists a file that could not be copied, and leaves the body for the server copy', () => {
+    const id = addLocalSentCopy(queue({ attachments: attach('ok.pdf', 'gone.pdf') }), ME)!
+    expect(listAttachments(id).map((a) => a.filename)).toEqual(['ok.pdf', 'gone.pdf'])
+    expect(attachmentPath(listAttachments(id)[1].id)).toBeNull()
+    expect(bodyFetched(id)).toBe(0)
+  })
+
+  it('keeps the files when the server copy adopts the row', () => {
+    const row = queue({ attachments: attach('quote.pdf') })
+    const id = addLocalSentCopy(row, ME)!
+    upsertMessage({
+      account_id: 1, folder_id: 2, uid: 41, message_id: outboxMessageId(row), thread_id: outboxMessageId(row),
+      in_reply_to: null, from_addr: 'me@x.test', from_name: 'Kai', to_addrs: '[]', cc_addrs: '[]',
+      subject: 'Re: Friday', date: 2000, snippet: null, flags: '["\\Seen"]', has_attachments: 1
+    })
+    expect(sentRows()).toEqual([expect.objectContaining({ id, uid: 41 })])
+    expect(listAttachments(id).map((a) => a.filename)).toEqual(['quote.pdf'])
+    expect(bodyFetched(id)).toBe(1)
+  })
+
+  it('takes the copied files away when the send is undone', () => {
+    const row = queue({ attachments: attach('quote.pdf') })
+    const id = addLocalSentCopy(row, ME)!
+    const stored = attachmentPath(listAttachments(id)[0].id)!
+    expect(cancelOutbox(row.id)).toBe(true)
+    expect(existsSync(stored)).toBe(false)
+    expect(listAttachments(id)).toEqual([])
   })
 })
